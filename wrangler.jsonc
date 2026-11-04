@@ -15,7 +15,7 @@
     {
       "binding": "DB",
       "database_name": "ichiban-tiket",
-      "database_id": "ISI-DENGAN-ID-DATABASE-D1",
+      "database_id": "c355c1d5-79f6-41e9-a775-0603c44ada1f",
       "migrations_dir": "migrations"
     }
   ]
