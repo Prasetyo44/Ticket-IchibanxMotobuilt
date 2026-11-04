@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0c0c10">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<title>Admin Ichiban x Motobuilt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Kanit:ital,wght@1,700;1,800&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🎟️%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="login hidden" id="login">
+  <div class="card">
+    <h2>Admin Ichiban x Motobuilt</h2>
+    <p class="sub">Masukkan password admin.</p>
+    <div class="field" style="margin-bottom:12px">
+      <input type="password" id="pw" placeholder="Password" autocomplete="current-password">
+      <div class="errmsg" id="loginErr"></div>
+    </div>
+    <button class="btn block" id="loginBtn">Masuk</button>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <div class="adm-top">
+    <h1>🎟️ Admin Ichiban x Motobuilt</h1>
+    <div class="tabs" id="tabs">
+      <button data-t="summary" class="on">Ringkasan</button>
+      <button data-t="regs">Peserta</button>
+      <button data-t="employees">Karyawan</button>
+      <button data-t="requests">Tiket tambahan <span id="reqBadge" class="badge bad hidden" style="margin-left:4px"></span></button>
+      <button data-t="qr">Stok QR IMOS</button>
+      <button data-t="settings">Pengaturan</button>
+    </div>
+    <button class="btn sm ghost" id="logout">Keluar</button>
+  </div>
+
+  <div class="adm">
+    <!-- Ringkasan -->
+    <section id="t-summary">
+      <div class="stats" id="stats"></div>
+      <div class="card"><h2>Pendaftar per bagian</h2><p class="sub">Jumlah tiket per bagian.</p><div class="bars" id="bars"></div></div>
+      <div class="card"><h2>Link penting</h2>
+        <p class="sub" style="margin:0">Bagikan ke karyawan: <b id="linkForm"></b></p>
+      </div>
+    </section>
+
+    <!-- Peserta -->
+    <section id="t-regs" class="hidden">
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="Cari nama / NIK / bagian / HP / email…">
+        <span id="regCount" style="color:var(--muted);font-size:14px"></span>
+        <span style="flex:1"></span>
+        <a class="btn sm dark" href="/api/admin/export.csv" style="text-decoration:none">⬇ Export CSV</a>
+      </div>
+      <div class="tbl-wrap"><table class="t"><thead><tr>
+        <th>Waktu</th><th>Karyawan</th><th>Bagian</th><th>Tiket / Tamu</th><th>Kontak</th><th></th>
+      </tr></thead><tbody id="regRows"></tbody></table></div>
+    </section>
+
+    <!-- Karyawan -->
+    <section id="t-employees" class="hidden">
+      <div class="card">
+        <h2>Daftar karyawan (opsional, sangat disarankan)</h2>
+        <p class="sub">Kalau diisi, hanya ID karyawan di daftar ini yang bisa mendaftar — mencegah orang luar atau ID palsu. Format per baris: <code>NIK, Nama, Bagian</code> (bisa paste dari Excel).</p>
+        <textarea id="empText" rows="8" placeholder="WC-001, Budi Santoso, QC&#10;WC-002, Siti Aminah, Produksi"></textarea>
+        <div class="toolbar" style="margin:12px 0 0">
+          <button class="btn sm" id="empImport">Impor / perbarui</button>
+          <button class="btn sm danger" id="empClear">Hapus semua daftar</button>
+          <a class="btn sm ghost" href="/api/admin/not-registered.csv" style="text-decoration:none">⬇ Karyawan yang belum daftar</a>
+          <span id="empInfo" style="color:var(--muted);font-size:14px"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stok QR IMOS -->
+    <section id="t-requests" class="hidden">
+      <div class="card" style="margin-bottom:14px">
+        <h2>Permintaan tiket tambahan</h2>
+        <p class="sub" style="margin:0">Karyawan mendapat maksimal 2 tiket. Kalau butuh lebih, mereka mengajukan lewat halaman tiket. Setujui untuk mengambil QR dari stok dan menambahkannya ke halaman tiket mereka. Pastikan stok QR cukup.</p>
+      </div>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th>Waktu</th><th>Karyawan</th><th>Tiket sekarang</th><th>Tambahan diminta</th><th>Status</th><th></th></tr></thead><tbody id="reqRows"></tbody></table></div>
+    </section>
+
+    <section id="t-qr" class="hidden">
+      <div class="card">
+        <h2>Stok tiket QR dari IMOS</h2>
+        <p class="sub">Upload semua file tiket dari IMOS (PNG, JPG, WebP, atau PDF) — <b>satu file = satu tiket</b>. Saat karyawan mendaftar, sistem mengambil 1–2 file dari stok dan menampilkan <b>file aslinya</b> (tanpa diubah) hanya di halaman tiket website. Kalau pendaftaran dibatalkan, file kembali ke stok dan bisa dipakai karyawan lain. File dengan isi yang sama tidak akan masuk dua kali.</p>
+        <input type="file" id="qrFiles" multiple accept="image/png,image/jpeg,image/webp,application/pdf,.pdf">
+        <div class="toolbar" style="margin:12px 0 0">
+          <button class="btn sm" id="qrUpload">Upload ke stok</button>
+          <span id="qrProg" style="color:var(--muted);font-size:14px"></span>
+        </div>
+      </div>      <div class="stats" id="qrStats"></div>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th>Pratinjau</th><th>File</th><th>Status</th><th>Dipakai oleh</th><th></th></tr></thead><tbody id="qrRows"></tbody></table></div>
+    </section>
+
+    <!-- Pengaturan -->
+    <section id="t-settings" class="hidden">
+      <div class="card">
+        <h2>Pengaturan event</h2>
+        <p class="sub">Perubahan langsung tampil di form pendaftaran dan di tiket.</p>
+        <div class="formgrid" id="setForm">
+          <div class="full"><label class="f">Nama event</label><input type="text" name="event_title"></div>
+          <div><label class="f">Tanggal</label><input type="text" name="event_date" placeholder="Sabtu, 12 Desember 2026"></div>
+          <div><label class="f">Jam</label><input type="text" name="event_time" placeholder="18.00 WIB – selesai"></div>
+          <div><label class="f">Tempat</label><input type="text" name="venue"></div>
+          <div><label class="f">Alamat tempat</label><input type="text" name="venue_address"></div>
+          <div><label class="f">Dress code <span class="opt">(opsional)</span></label><input type="text" name="dresscode"></div>
+          <div><label class="f">Kontak panitia</label><input type="text" name="contact" placeholder="IT: 0812-xxxx"></div>
+          <div class="full"><label class="f">Kode akses karyawan <span class="opt">(kosong = form terbuka untuk siapa saja yang tahu alamatnya)</span></label><input type="text" name="access_code" autocomplete="off" placeholder="mis. kode rahasia yang dibagikan HRD di grup karyawan"></div>
+          <div><label class="f">Kuota total tiket <span class="opt">(0 = tanpa batas)</span></label><input type="number" min="0" name="capacity"></div>
+          <div><label class="f">Batas waktu pendaftaran <span class="opt">(WIB, kosongkan jika tanpa batas)</span></label><input type="datetime-local" name="registration_deadline"></div>
+          <div class="full"><label class="f">Info di tiket</label><textarea name="info" rows="2"></textarea></div>
+          <div class="full"><label class="f">Daftar bagian <span class="opt">(satu per baris)</span></label><textarea name="departments" rows="7"></textarea></div>
+          <div class="full"><label class="check"><input type="checkbox" name="registration_open"> <span>Pendaftaran dibuka</span></label></div>
+        </div>
+        <div style="margin-top:16px"><button class="btn" id="saveSet">Simpan pengaturan</button></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<dialog id="dlg"><div id="dlgBody"></div><div style="text-align:right;margin-top:14px"><button class="btn sm ghost" onclick="document.getElementById('dlg').close()">Tutup</button></div></dialog>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); kids.forEach(k => n.append(k)); return n; };
+const fmt = iso => iso ? new Date(iso).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '–';
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) { showLogin(); throw new Error('login'); }
+  if (!res.ok) throw new Error(data.error || 'Terjadi kesalahan');
+  return data;
+}
+function toast(msg, bad) {
+  const t = el('div', { className: 'toast' + (bad ? ' bad' : ''), textContent: msg });
+  document.body.append(t); setTimeout(() => t.remove(), 3200);
+}
+const run = (fn) => fn().catch(e => { if (e.message !== 'login') toast(e.message, true); });
+
+/* ---- login ---- */
+function showLogin() { $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); }
+$('#loginBtn').onclick = async () => {
+  try {
+    const r = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('#pw').value }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error);
+    if (d.role !== 'admin') { showLogin(); return; }
+    start();
+  } catch (e) { $('#loginErr').textContent = e.message; }
+};
+$('#pw').addEventListener('keydown', e => { if (e.key === 'Enter') $('#loginBtn').click(); });
+$('#logout').onclick = async () => { await fetch('/api/admin/logout', { method: 'POST' }); location.reload(); };
+
+/* ---- tab ---- */
+const loaders = { summary: loadSummary, regs: loadRegs, employees: loadEmployees, requests: loadRequests, qr: loadQr, settings: loadSettings };
+function openTab(t) {
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  Object.keys(loaders).forEach(k => $('#t-' + k).classList.toggle('hidden', k !== t));
+  run(loaders[t]);
+}
+$('#tabs').onclick = e => { if (e.target.dataset.t) openTab(e.target.dataset.t); };
+
+/* ---- ringkasan ---- */
+async function loadSummary() {
+  const s = await api('/api/admin/stats');
+  const cards = [
+    [s.registrations, 'Karyawan terdaftar', s.employees ? `${s.employeesRegistered} dari ${s.employees} karyawan` : ''],
+    [s.tickets, 'Total tiket', `${s.withGuest} bawa tamu`],
+    [s.pendingRequests, 'Permintaan tiket tambahan', s.pendingRequests ? 'menunggu keputusan (tab Tiket tambahan)' : 'tidak ada yang menunggu'],
+    [s.remaining ?? '∞', 'Sisa tiket', `stok IMOS: ${s.qr.available} dari ${s.qr.total} file`],
+  ];
+  $('#stats').replaceChildren(...cards.map(([n, l, sm]) => el('div', { className: 'stat' }, el('b', { textContent: n }), el('span', { textContent: l }), el('small', { textContent: sm }))));
+  const max = Math.max(1, ...s.byDept.map(x => x.tickets));
+  $('#bars').replaceChildren(...(s.byDept.length ? s.byDept.map(x => el('div', { className: 'brow' },
+    el('span', { textContent: x.dept }), el('div', { className: 'bar' }, el('i', { style: `width:${x.tickets / max * 100}%` })), el('b', { textContent: x.tickets + ' tiket' }))) : [el('p', { className: 'sub', textContent: 'Belum ada pendaftar.' })]));
+  $('#linkForm').textContent = location.origin + '/';
+}
+
+/* ---- peserta ---- */
+let qTimer;
+$('#q').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(() => run(loadRegs), 250); });
+const stBadge = (s) => ({ sent: ['ok', 'Terkirim'], simulated: ['mute', 'Simulasi'], pending: ['warn', 'Menunggu'], failed: ['bad', 'Gagal'], skipped: ['mute', 'Dilewati'] }[s] || ['mute', '–']);
+function pill(label, status) { const [c, t] = stBadge(status); return el('span', { className: 'badge ' + c, title: label + ': ' + t, textContent: label + ' ' + t }); }
+
+async function loadRegs() {
+  const rows = await api('/api/admin/registrations?q=' + encodeURIComponent($('#q').value));
+  $('#regCount').textContent = rows.length + ' pendaftar';
+  $('#regRows').replaceChildren(...rows.map(r => {
+    const act = el('div', { className: 'row-actions' });
+    if (r.status === 'active') {
+      act.append(
+        el('button', { className: 'btn sm ghost', textContent: 'Salin link', onclick: () => navigator.clipboard.writeText(r.url).then(() => toast('Link tiket disalin')) }),
+        el('button', { className: 'btn sm danger', textContent: 'Batalkan', onclick: () => { if (confirm(`Batalkan pendaftaran ${r.name}? QR-nya hilang dari halaman tiket dan kembali ke stok untuk dipakai karyawan lain.`)) run(async () => { await api(`/api/admin/registrations/${r.id}/cancel`, { method: 'POST' }); toast('Dibatalkan'); await loadRegs(); }); } }));
+    }
+    let cancelCell = 'batal';
+    if (r.status !== 'active') {
+      const who = r.cancelled_by === 'self' ? 'oleh peserta' : 'oleh panitia';
+      cancelCell = el('div', {}, el('div', { textContent: 'batal ' + who }),
+        r.rereg_allowed
+          ? el('span', { className: 'badge ok', textContent: 'Boleh daftar ulang' })
+          : el('button', { className: 'btn sm ghost', textContent: 'Izinkan daftar ulang', onclick: () => { if (confirm(`Izinkan ${r.name} (${r.nik}) mendaftar ulang satu kali? QR lama tetap harus dinonaktifkan IMOS.`)) run(async () => { await api(`/api/admin/registrations/${r.id}/allow-rereg`, { method: 'POST' }); toast('Diizinkan daftar ulang'); await loadRegs(); }); } }));
+      act.append(cancelCell);
+    }
+    return el('tr', { className: r.status === 'active' ? '' : 'cancelled' },
+      el('td', { textContent: fmt(r.created_at) }),
+      el('td', {}, el('b', { textContent: r.name }), el('div', { className: 'small', textContent: r.nik })),
+      el('td', { textContent: r.dept }),
+      el('td', {}, el('b', { textContent: r.ticket_count + ' tiket' }), el('div', { className: 'small', textContent: r.guest_name ? 'Tamu: ' + r.guest_name : '—' })),
+      el('td', {}, el('div', { textContent: r.phone }), el('div', { className: 'small', textContent: r.email })),
+      el('td', {}, act));
+  }));
+}
+
+/* ---- karyawan ---- */
+async function loadEmployees() {
+  const list = await api('/api/admin/employees');
+  const s = await api('/api/admin/stats');
+  $('#empInfo').textContent = list.length ? `${list.length} karyawan di daftar • ${s.employeesRegistered} sudah daftar` : 'Daftar kosong — pendaftaran terbuka untuk semua ID.';
+}
+$('#empImport').onclick = () => run(async () => {
+  const r = await api('/api/admin/employees/import', { method: 'POST', body: JSON.stringify({ text: $('#empText').value }) });
+  toast(`${r.imported} karyawan diimpor`); $('#empText').value = ''; await loadEmployees();
+});
+$('#empClear').onclick = () => { if (confirm('Hapus seluruh daftar karyawan? Setelah itu pendaftaran terbuka untuk semua ID.')) run(async () => { await api('/api/admin/employees', { method: 'DELETE' }); toast('Daftar dihapus'); await loadEmployees(); }); };
+
+/* ---- stok QR IMOS ---- */
+const fmtSize = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+/* ---- tiket tambahan ---- */
+async function loadRequests() {
+  const rows = await api('/api/admin/requests');
+  const pending = rows.filter(r => r.status === 'pending').length;
+  const b = $('#reqBadge'); b.textContent = pending; b.classList.toggle('hidden', !pending);
+  const lab = { pending: ['warn', 'Menunggu'], approved: ['ok', 'Disetujui'], rejected: ['bad', 'Ditolak'] };
+  $('#reqRows').replaceChildren(...(rows.length ? rows.map(r => {
+    const [c, t] = lab[r.status];
+    const act = el('div', { className: 'row-actions' });
+    if (r.status === 'pending') act.append(
+      el('button', { className: 'btn sm', textContent: 'Setujui', onclick: () => { if (confirm(`Setujui ${r.extra} tiket tambahan untuk ${r.name}? ${r.extra} QR diambil dari stok.`)) run(async () => { await api(`/api/admin/requests/${r.id}/approve`, { method: 'POST' }); toast('Disetujui, QR ditambahkan'); await loadRequests(); }); } }),
+      el('button', { className: 'btn sm danger', textContent: 'Tolak', onclick: () => { if (confirm(`Tolak permintaan ${r.name}?`)) run(async () => { await api(`/api/admin/requests/${r.id}/reject`, { method: 'POST' }); toast('Ditolak'); await loadRequests(); }); } }));
+    return el('tr', {},
+      el('td', { textContent: fmt(r.created_at) }),
+      el('td', {}, el('b', { textContent: r.name }), el('div', { className: 'small', textContent: `${r.nik} • ${r.dept} • ${r.phone}` })),
+      el('td', { textContent: r.ticket_count + ' tiket' + (r.reg_status !== 'active' ? ' (dibatalkan)' : '') }),
+      el('td', {}, el('b', { textContent: '+' + r.extra }), el('div', { className: 'small', textContent: r.guests.join(', ') + (r.reason ? ' — ' + r.reason : '') })),
+      el('td', {}, el('span', { className: 'badge ' + c, textContent: t })),
+      el('td', {}, act));
+  }) : [el('tr', {}, el('td', { colSpan: 6, className: 'small', textContent: 'Belum ada permintaan.' }))]));
+}
+
+async function loadQr() {
+  const d = await api('/api/admin/qr');
+  const c = d.counts;  $('#qrStats').replaceChildren(...[[c.total, 'Total file', ''], [c.available, 'Tersedia', 'belum dibagikan'], [c.assigned, 'Sudah dibagikan', 'sedang dipakai peserta']]
+    .map(([n, l, sm]) => el('div', { className: 'stat' }, el('b', { textContent: n }), el('span', { textContent: l }), el('small', { textContent: sm }))));
+  $('#qrRows').replaceChildren(...d.items.map(q => {
+    const thumb = q.mime.startsWith('image/')
+      ? el('img', { src: `/api/admin/qr/${q.id}/file`, loading: 'lazy', style: 'width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--line);background:#fff' })
+      : el('span', { className: 'badge mute', textContent: 'PDF' });
+    const used = q.status === 'assigned'
+      ? el('div', {}, el('b', { textContent: q.employee || '–' }), el('div', { className: 'small', textContent: `tiket ${q.seq} — ${q.holder_name}${q.reg_status === 'cancelled' ? ' (dibatalkan)' : ''}` }))
+      : '';
+    return el('tr', {},
+      el('td', {}, thumb),
+      el('td', {}, el('div', { textContent: q.filename }), el('div', { className: 'small', textContent: fmtSize(q.size) })),
+      el('td', {}, el('span', { className: 'badge ' + (q.status === 'available' ? 'ok' : 'warn'), textContent: q.status === 'available' ? 'Tersedia' : 'Terpakai' })),
+      el('td', {}, used),
+      el('td', {}, q.status === 'available' ? el('button', { className: 'btn sm danger', textContent: 'Hapus', onclick: () => { if (confirm('Hapus file ini dari stok?')) run(async () => { await api(`/api/admin/qr/${q.id}`, { method: 'DELETE' }); await loadQr(); }); } }) : ''));
+  }));
+}$('#qrUpload').onclick = () => run(async () => {
+  const files = [...$('#qrFiles').files];
+  if (!files.length) return toast('Pilih file dulu', true);
+  const btn = $('#qrUpload'); btn.disabled = true;
+  let ok = 0, dup = 0; const fail = [];
+  for (let i = 0; i < files.length; i++) {
+    $('#qrProg').textContent = `Mengupload ${i + 1} / ${files.length}…`;
+    try {
+      const r = await fetch('/api/admin/qr/upload?name=' + encodeURIComponent(files[i].name), { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: files[i] });
+      const d = await r.json().catch(() => ({}));
+      if (r.status === 401) { showLogin(); break; }
+      if (!r.ok) fail.push(`${files[i].name}: ${d.error || r.status}`);
+      else if (d.duplicate) dup++; else ok++;
+    } catch (e) { fail.push(`${files[i].name}: gagal terkirim`); }
+  }
+  btn.disabled = false; $('#qrFiles').value = '';
+  $('#qrProg').textContent = `${ok} file masuk${dup ? `, ${dup} dilewati (sudah ada)` : ''}${fail.length ? `, ${fail.length} gagal` : ''}.`;
+  if (fail.length) alert('Gagal:\n' + fail.slice(0, 15).join('\n'));
+  await loadQr();
+});
+
+/* ---- pengaturan ---- */
+async function loadSettings() {
+  const s = await api('/api/admin/settings');
+  document.querySelectorAll('#setForm [name]').forEach(i => {
+    if (i.type === 'checkbox') i.checked = s[i.name] === '1'; else i.value = s[i.name] ?? '';
+  });
+}
+$('#saveSet').onclick = () => run(async () => {
+  const body = {};
+  document.querySelectorAll('#setForm [name]').forEach(i => { body[i.name] = i.type === 'checkbox' ? i.checked : i.value; });
+  await api('/api/admin/settings', { method: 'PUT', body: JSON.stringify(body) });
+  toast('Pengaturan disimpan ✓');
+});
+
+/* ---- start ---- */
+async function start() {
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  openTab('summary');
+}
+fetch('/api/admin/me').then(async r => {
+  if (!r.ok) return showLogin();
+  const d = await r.json();
+  if (d.role !== 'admin') { showLogin(); return; }
+  start();
+});
+setInterval(() => { if (!$('#t-summary').classList.contains('hidden') && !document.hidden) run(loadSummary); }, 20000);
+</script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0c0c10">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<title>E-Ticket Ichiban x Motobuilt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Kanit:ital,wght@1,700;1,800&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🎟️%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="moto">
+<header class="hero" style="padding-bottom:90px">
+  <div class="wrap" style="text-align:center">
+    <div class="eyebrow">E-Ticket</div>
+    <h1 id="title" class="moto-title" style="margin-bottom:0">…</h1>
+  </div>
+</header>
+
+<div id="status" class="note" style="margin-top:-60px;color:#fff"></div>
+<div class="tickets" id="tickets"></div>
+<p class="note noprint" id="info"></p>
+<p class="note noprint"><button class="linkbtn" onclick="window.print()">Cetak / simpan PDF</button></p>
+<p class="note noprint hidden" id="extraRow"><button class="linkbtn" type="button" id="extraOpen">Butuh tiket lebih dari ini? Ajukan ke HRD</button></p>
+<p class="note noprint hidden" id="extraStatus"></p>
+<p class="note noprint hidden" id="cancelRow"><button class="linkbtn" type="button" id="cancelOpen" style="color:#ff9a92">Batalkan tiket saya</button></p>
+
+<dialog id="extraDlg" class="noprint" style="color:#14162a">
+  <h2 style="margin-bottom:4px">Ajukan tiket tambahan</h2>
+  <p style="margin:0 0 12px;color:#5d5d68;font-size:14px">Satu karyawan mendapat maksimal 2 tiket. Kalau butuh lebih, ajukan di sini. HRD akan memutuskan dan tiket tambahan muncul di halaman ini kalau disetujui.</p>
+  <div class="field" style="margin-bottom:12px"><label class="f" for="xNik">ID Karyawan</label><input type="text" id="xNik" autocapitalize="characters"></div>
+  <div class="field" style="margin-bottom:12px"><label class="f" for="xPhone">No. HP saat mendaftar</label><input type="tel" id="xPhone" inputmode="tel"></div>
+  <div class="field" style="margin-bottom:12px"><label class="f" for="xGuests">Nama tamu tambahan (satu nama per baris, maksimal 5)</label><textarea id="xGuests" rows="3"></textarea></div>
+  <div class="field" style="margin-bottom:12px"><label class="f" for="xReason">Alasan <span class="opt">(opsional)</span></label><input type="text" id="xReason" maxlength="300"></div>
+  <div id="xMsg" class="banner bad hidden"></div>
+  <div style="display:flex;gap:10px;justify-content:flex-end">
+    <button class="btn ghost sm" type="button" id="xClose">Kembali</button>
+    <button class="btn sm" type="button" id="xGo">Kirim permintaan</button>
+  </div>
+</dialog>
+
+<dialog id="cancelDlg" class="noprint" style="color:#14162a">
+  <h2 style="margin-bottom:4px">Batalkan tiket?</h2>
+  <div class="banner bad" style="margin:10px 0 14px;font-size:14px">Semua tiket di pendaftaran ini (termasuk tiket tamu) langsung tidak berlaku dan tidak bisa dipakai lagi. Kamu <b>tidak bisa mendaftar ulang</b> kecuali panitia mengizinkan.</div>
+  <div class="field" style="margin-bottom:12px"><label class="f" for="cNik">ID Karyawan</label><input type="text" id="cNik" autocapitalize="characters"></div>
+  <div class="field" style="margin-bottom:12px"><label class="f" for="cPhone">No. HP saat mendaftar</label><input type="tel" id="cPhone" inputmode="tel"></div>
+  <label style="display:flex;gap:8px;align-items:flex-start;font-size:14px;margin-bottom:12px"><input type="checkbox" id="cOk" style="margin-top:3px"> Saya mengerti dan ingin membatalkan tiket ini.</label>
+  <div id="cMsg" class="banner bad hidden"></div>
+  <div style="display:flex;gap:10px;justify-content:flex-end">
+    <button class="btn ghost sm" type="button" id="cClose">Kembali</button>
+    <button class="btn sm" type="button" id="cGo" disabled style="background:#b3261e">Ya, batalkan</button>
+  </div>
+</dialog>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const token = location.pathname.split('/').filter(Boolean).pop();
+
+function el(tag, props = {}, ...kids) {
+  const n = Object.assign(document.createElement(tag), props);
+  kids.forEach(k => n.append(k));
+  return n;
+}
+
+// Tiket asli dari IMOS (gambar QR atau PDF) bila ada; kalau tidak, QR buatan aplikasi
+// PENTING: gambar QR dari IMOS ditampilkan apa adanya — tanpa filter, tanpa crop, tanpa mengubah rasio.
+// Hanya diberi bingkai putih di sekelilingnya supaya kontras dan mudah dipindai.
+function qrBlock(t, cancelled) {
+  if (cancelled) return [el('div', { className: 'qr-gone', textContent: 'QR sudah dihapus karena tiket dibatalkan' })];
+  if (t.file && t.file.mime.startsWith('image/')) {
+    return [
+      el('div', { className: 'qr-plate' }, el('img', { className: 'qr', src: t.file.url, alt: 'QR tiket ' + t.seq, draggable: false })),
+    ];
+  }
+  if (t.file) {
+    return [
+      el('div', { style: 'margin:14px 0' }, el('a', { className: 'btn', href: t.file.url, target: '_blank', rel: 'noopener', style: 'text-decoration:none;display:inline-block', textContent: 'Buka tiket (PDF)' })),
+    ];
+  }
+  return [
+    el('div', { className: 'qr-plate' }, el('img', { className: 'qr', src: `/qr/${encodeURIComponent(t.code)}.png`, alt: 'QR ' + t.code })),
+    el('div', { className: 'code', textContent: t.code }),
+  ];
+}
+
+fetch('/api/ticket/' + encodeURIComponent(token)).then(async r => {
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'Tiket tidak ditemukan');
+  return d;
+}).then(d => {
+  document.title = 'E-Ticket ' + d.event.title;
+  $('#title').textContent = d.event.title;
+  const cancelled = d.registration.status !== 'active';
+  if (cancelled) {
+    $('#status').className = 'note';
+    $('#status').style.color = '';
+    $('#status').append(el('div', { className: 'banner bad', textContent: 'Pendaftaran ini sudah dibatalkan. Tiket tidak berlaku.' }));
+  }
+  const meta = [d.event.date + (d.event.time ? ' • ' + d.event.time : ''), d.event.venue + (d.event.address ? ' — ' + d.event.address : '')].filter(Boolean);
+  const wrap = $('#tickets');
+  d.tickets.forEach(t => {
+    const badge = cancelled ? el('span', { className: 'badge bad', textContent: 'Dibatalkan' })
+      : t.used ? el('span', { className: 'badge warn', textContent: 'Sudah dipakai' })
+      : el('span', { className: 'badge ok', textContent: 'Berlaku' });
+    wrap.append(el('article', { className: 'ticket' + (t.used || cancelled ? ' used' : '') },
+      el('div', { className: 'art', role: 'img', 'aria-label': 'Poster Ichiban Paint Motobuilt Modification Contest 2026, Moto Built Fest 2026' }),
+      el('div', { className: 'top' },
+        el('span', { className: 'pill', textContent: `Tiket ${t.seq} dari ${d.tickets.length}` }),
+        el('h2', { textContent: d.event.title }),
+        ...meta.map(m => el('div', { className: 'meta', textContent: m }))),
+      el('div', { className: 'perf' }),
+      el('div', { className: 'body' },
+        el('div', { className: 'who', textContent: t.kind === 'employee' ? 'Karyawan' : 'Tamu' }),
+        el('div', { className: 'name', textContent: t.holder }),
+        ...qrBlock(t, cancelled),
+        el('div', { style: 'margin-top:12px' }, badge),
+        ...(d.event.dresscode ? [el('div', { className: 'dress', textContent: '👔 ' + d.event.dresscode })] : [])),
+      el('div', { className: 'bar-teal' }, el('span', { textContent: '@MOTOBUILT.FEST' }), el('span', { textContent: 'Moto Built Fest 2026' }))));
+  });
+  if (!cancelled) {
+    $('#cancelRow').classList.remove('hidden');
+    const rq = d.request;
+    if (rq && rq.status === 'pending') {
+      const s = $('#extraStatus'); s.textContent = `Permintaan ${rq.extra} tiket tambahan sedang menunggu keputusan HRD.`; s.classList.remove('hidden');
+    } else {
+      $('#extraRow').classList.remove('hidden');
+      if (rq && rq.status === 'rejected') { const s = $('#extraStatus'); s.textContent = 'Permintaan tiket tambahan sebelumnya tidak disetujui. Hubungi HRD kalau perlu info.'; s.classList.remove('hidden'); }
+    }
+  }
+  $('#info').textContent = d.event.info + (d.event.contact ? ' Ada kendala? Hubungi ' + d.event.contact + '.' : '');
+}).catch(e => {
+  $('#title').textContent = 'Tiket tidak ditemukan';
+  $('#status').textContent = 'Periksa kembali link tiket kamu, atau hubungi panitia.';
+});
+
+document.addEventListener('contextmenu', (e) => { if (e.target.closest('.qr-plate')) e.preventDefault(); });
+const xd = $('#extraDlg');
+$('#extraOpen').onclick = () => xd.showModal();
+$('#xClose').onclick = () => xd.close();
+$('#xGo').onclick = async () => {
+  const msg = $('#xMsg'); msg.classList.add('hidden'); $('#xGo').disabled = true;
+  try {
+    const r = await fetch('/api/ticket/' + encodeURIComponent(token) + '/request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nik: $('#xNik').value, phone: $('#xPhone').value, guests: $('#xGuests').value.split('\n'), reason: $('#xReason').value }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Gagal mengirim permintaan.');
+    location.reload();
+  } catch (e) { msg.textContent = e.message; msg.classList.remove('hidden'); $('#xGo').disabled = false; }
+};
+
+const dlg = $('#cancelDlg');
+$('#cancelOpen').onclick = () => dlg.showModal();
+$('#cClose').onclick = () => dlg.close();
+$('#cOk').onchange = (e) => { $('#cGo').disabled = !e.target.checked; };
+$('#cGo').onclick = async () => {
+  const msg = $('#cMsg'); msg.classList.add('hidden');
+  $('#cGo').disabled = true;
+  try {
+    const r = await fetch('/api/ticket/' + encodeURIComponent(token) + '/cancel', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nik: $('#cNik').value, phone: $('#cPhone').value, confirm: true }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Gagal membatalkan.');
+    location.reload();
+  } catch (e) {
+    msg.textContent = e.message; msg.classList.remove('hidden');
+    $('#cGo').disabled = !$('#cOk').checked;
+  }
+};
+</script>
+</body>
+</html>

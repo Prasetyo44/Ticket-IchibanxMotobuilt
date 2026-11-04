@@ -1,0 +1,14 @@
+{
+  "name": "ichiban-tiket",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --persist-to .wrangler/state",
+    "db:local": "wrangler d1 migrations apply ichiban-tiket --local --persist-to .wrangler/state",
+    "db:remote": "wrangler d1 migrations apply ichiban-tiket --remote",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

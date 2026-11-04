@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0c0c10">
+<title>Tiket Ichiban x Motobuilt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Kanit:ital,wght@1,700;1,800&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🎟️%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="moto">
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Pendaftaran Tiket • Khusus Karyawan</div>
+    <h1 id="title" class="moto-title">Ichiban x Motobuilt</h1>
+    <img class="poster-img" src="/img/poster.jpg" width="1080" height="1350" alt="Poster Ichiban Paint Motobuilt Modification Contest 2026 — Moto Built Fest 2026, 20–29 November 2026, ICE BSD City">
+    <div class="chips" id="chips"></div>
+    <div class="quota hidden" id="quota">
+      <div class="bar"><i id="quotaBar" style="width:0"></i></div>
+      <small id="quotaText"></small>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="card hidden" id="gateCard">
+    <h2>Khusus karyawan</h2>
+    <p class="sub">Masukkan kode akses dari HRD untuk membuka pendaftaran tiket.</p>
+    <div class="field" style="margin-bottom:12px"><label class="f" for="gateCode">Kode akses</label><input type="password" id="gateCode" autocomplete="off"></div>
+    <div id="gateErr" class="banner bad hidden"></div>
+    <button class="btn block" id="gateBtn" type="button">Buka pendaftaran</button>
+  </section>
+
+  <section class="card" id="formCard">
+    <div id="closed" class="banner bad hidden"></div>
+    <h2>Isi data kamu</h2>
+    <p class="sub">Setiap karyawan mendapat <b>maksimal 2 tiket</b> (untuk kamu dan 1 tamu). Tiket (QR Code) langsung muncul di website setelah form dikirim, tidak dikirim lewat WhatsApp atau email. Butuh lebih dari 2 tiket? Daftar dulu, lalu ajukan tiket tambahan lewat halaman tiketmu. HRD yang memutuskan.</p>
+
+    <form id="form" novalidate autocomplete="on">
+      <div class="grid">
+        <div class="field" data-f="nik">
+          <label class="f" for="nik">ID Karyawan (NIK)</label>
+          <input type="text" id="nik" name="nik" autocapitalize="characters" placeholder="mis. WC-0123" required>
+          <div class="errmsg"></div>
+        </div>
+        <div class="field" data-f="name">
+          <label class="f" for="name">Nama lengkap</label>
+          <input type="text" id="name" name="name" autocomplete="name" required>
+          <div class="errmsg"></div>
+        </div>
+        <div class="field" data-f="dept">
+          <label class="f" for="dept">Bagian</label>
+          <select id="dept" name="dept" required><option value="">Pilih bagian…</option></select>
+          <div class="errmsg"></div>
+        </div>
+        <div class="field" data-f="phone">
+          <label class="f" for="phone">No. HP (WhatsApp aktif)</label>
+          <input type="tel" id="phone" name="phone" inputmode="tel" autocomplete="tel" placeholder="0812 3456 7890" required>
+          <div class="errmsg"></div>
+        </div>
+        <div class="field full" data-f="email">
+          <label class="f" for="email">Email</label>
+          <input type="email" id="email" name="email" autocomplete="email" placeholder="nama@email.com" required>
+          <div class="errmsg"></div>
+        </div>
+        <div class="field full" data-f="address">
+          <label class="f" for="address">Alamat</label>
+          <textarea id="address" name="address" autocomplete="street-address" required></textarea>
+          <div class="errmsg"></div>
+        </div>
+
+        <div class="field full" data-f="ticket_count">
+          <label class="f">Jumlah tiket</label>
+          <div class="seg">
+            <label><input type="radio" name="ticket_count" value="1"><span>1 tiket<small>Hanya saya</small></span></label>
+            <label><input type="radio" name="ticket_count" value="2" checked><span>2 tiket<small>Saya + 1 tamu</small></span></label>
+          </div>
+          <div class="errmsg"></div>
+        </div>
+
+        <div class="field full" data-f="guest_name" id="guestBox">
+          <label class="f" for="guest_name">Bersama siapa ke event?</label>
+          <input type="text" id="guest_name" name="guest_name" placeholder="Nama lengkap tamu yang ikut">
+          <div class="hint">Tiket tamu atas nama ini. Tiketnya bisa kamu teruskan langsung ke tamu.</div>
+          <div class="errmsg"></div>
+        </div>
+
+        <div class="field full" data-f="notes">
+          <label class="f" for="notes">Catatan <span class="opt">(opsional — alergi makanan, kebutuhan khusus, dll.)</span></label>
+          <input type="text" id="notes" name="notes" maxlength="200">
+          <div class="errmsg"></div>
+        </div>
+
+        <div class="field full" data-f="consent">
+          <label class="check"><input type="checkbox" id="consent" name="consent">
+            <span>Data yang saya isi benar, dan saya setuju data ini dipakai panitia hanya untuk keperluan event Ichiban x Motobuilt.</span></label>
+          <div class="errmsg"></div>
+        </div>
+
+        <div class="full">
+          <div id="formErr" class="banner bad hidden"></div>
+          <button class="btn block" id="submit" type="submit">Daftar &amp; lihat tiket</button>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <section class="card hidden" id="doneCard">
+    <div class="success">
+      <div class="tick">✓</div>
+      <h2>Pendaftaran berhasil!</h2>
+      <p id="doneText"></p>
+      <ol class="steps">
+        <li>Tiket (QR Code) dikirim otomatis dalam beberapa menit.</li>
+        <li id="stepGuest">Teruskan tiket tamu ke tamu kamu.</li>
+        <li>Tunjukkan QR Code ke panitia saat masuk — satu QR berlaku untuk satu orang.</li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer class="pg">
+  Sudah mendaftar? <button class="linkbtn" id="openResend" type="button">Buka tiket saya</button>
+</footer>
+
+<dialog id="resendDlg">
+  <h2 style="margin-bottom:4px">Buka tiket saya</h2>
+  <p class="sub" style="margin:0 0 14px;color:var(--muted);font-size:14px">Masukkan ID karyawan dan nomor HP yang kamu pakai saat mendaftar.</p>
+  <div class="field" style="margin-bottom:12px"><label class="f" for="rNik">ID Karyawan</label><input type="text" id="rNik" autocapitalize="characters"></div>
+  <div class="field" style="margin-bottom:12px"><label class="f" for="rPhone">No. HP saat mendaftar</label><input type="tel" id="rPhone" inputmode="tel"></div>
+  <div id="rMsg" class="banner ok hidden"></div>
+  <div style="display:flex;gap:10px;justify-content:flex-end">
+    <button class="btn ghost sm" type="button" id="rClose">Tutup</button>
+    <button class="btn sm" type="button" id="rSend">Buka tiket</button>
+  </div>
+</dialog>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const form = $('#form');
+let cfg = null;
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { const e = new Error(data.error || 'Terjadi kesalahan'); e.field = data.field; throw e; }
+  return data;
+}
+
+function setErr(field, msg) {
+  const box = $(`[data-f="${field}"]`);
+  if (!box) { $('#formErr').textContent = msg; $('#formErr').classList.remove('hidden'); return; }
+  box.classList.toggle('err', !!msg);
+  $('.errmsg', box).textContent = msg || '';
+}
+function clearErrs() {
+  document.querySelectorAll('.field').forEach(f => { f.classList.remove('err'); const m = $('.errmsg', f); if (m) m.textContent = ''; });
+  $('#formErr').classList.add('hidden');
+}
+
+function renderConfig() {
+  document.title = 'Tiket ' + cfg.event_title;
+  $('#title').textContent = cfg.event_title;
+  const chips = [];
+  if (cfg.event_date) chips.push('📅 ' + cfg.event_date + (cfg.event_time ? ' • ' + cfg.event_time : ''));
+  if (cfg.venue) chips.push('📍 ' + cfg.venue);
+  if (cfg.dresscode) chips.push('👔 ' + cfg.dresscode);
+  $('#chips').replaceChildren(...chips.map(t => Object.assign(document.createElement('span'), { className: 'chip', textContent: t })));
+
+  const dept = $('#dept');
+  cfg.departments.forEach(d => dept.append(new Option(d, d)));
+
+  if (cfg.remaining !== null && cfg.closedReason !== 'Tiket belum tersedia. Silakan coba lagi nanti.') {
+    $('#quota').classList.remove('hidden');
+    if (cfg.capacity > 0) {
+      const used = cfg.capacity - cfg.remaining;
+      $('#quotaBar').style.width = Math.min(100, Math.max(0, used / cfg.capacity * 100)) + '%';
+    } else {
+      $('#quota .bar').classList.add('hidden');
+    }
+    $('#quotaText').textContent = cfg.remaining > 0 ? `Sisa ${cfg.remaining} tiket` : 'Kuota tiket sudah habis';
+  }
+  if (!cfg.open) {
+    const c = $('#closed'); c.textContent = cfg.closedReason || 'Pendaftaran ditutup.'; c.classList.remove('hidden');
+    form.querySelectorAll('input,select,textarea,button').forEach(el => el.disabled = true);
+  } else if (cfg.remaining === 1) {
+    $('input[name=ticket_count][value="2"]').disabled = true;
+    $('input[name=ticket_count][value="1"]').checked = true;
+  }
+  syncGuest();
+}
+
+function syncGuest() {
+  const two = $('input[name=ticket_count]:checked')?.value === '2';
+  $('#guestBox').classList.toggle('hidden', !two);
+}
+form.addEventListener('change', e => { if (e.target.name === 'ticket_count') syncGuest(); });
+form.addEventListener('input', e => { const f = e.target.closest('.field'); if (f) { f.classList.remove('err'); $('.errmsg', f).textContent = ''; } });
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  clearErrs();
+  const body = {
+    nik: $('#nik').value, name: $('#name').value, dept: $('#dept').value, address: $('#address').value,
+    email: $('#email').value, phone: $('#phone').value,
+    ticket_count: Number($('input[name=ticket_count]:checked')?.value),
+    guest_name: $('#guest_name').value, notes: $('#notes').value, consent: $('#consent').checked,
+  };
+  // validasi cepat di sisi klien (server tetap memvalidasi ulang)
+  const quick = [
+    ['nik', !body.nik.trim(), 'ID karyawan wajib diisi.'],
+    ['name', body.name.trim().length < 2, 'Nama lengkap wajib diisi.'],
+    ['dept', !body.dept, 'Pilih bagian.'],
+    ['phone', !body.phone.trim(), 'Nomor HP wajib diisi.'],
+    ['email', !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email.trim()), 'Format email tidak valid.'],
+    ['address', body.address.trim().length < 5, 'Alamat wajib diisi.'],
+    ['ticket_count', ![1, 2].includes(body.ticket_count), 'Pilih jumlah tiket.'],
+    ['guest_name', body.ticket_count === 2 && body.guest_name.trim().length < 2, 'Nama tamu wajib diisi untuk 2 tiket.'],
+    ['consent', !body.consent, 'Centang persetujuan terlebih dahulu.'],
+  ].filter(x => x[1]);
+  if (quick.length) { quick.forEach(([f, , m]) => setErr(f, m)); $('.field.err')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+
+  const btn = $('#submit'); btn.disabled = true; btn.textContent = 'Mengirim…';
+  try {
+    const r = await api('/api/register', { method: 'POST', body: JSON.stringify(body) });
+    location.href = r.url; // tiket langsung ditampilkan di halaman tiket
+  } catch (err) {
+    setErr(err.field || '_', err.message);
+    $('.field.err')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } finally { btn.disabled = false; btn.textContent = 'Daftar & lihat tiket'; }
+});
+
+/* kirim ulang */
+const dlg = $('#resendDlg');
+$('#openResend').onclick = () => { $('#rMsg').classList.add('hidden'); dlg.showModal(); };
+$('#rClose').onclick = () => dlg.close();
+$('#rSend').onclick = async () => {
+  const m = $('#rMsg'); m.className = 'banner ok'; m.textContent = 'Memproses…';
+  try {
+    const r = await api('/api/lookup', { method: 'POST', body: JSON.stringify({ nik: $('#rNik').value, phone: $('#rPhone').value }) });
+    location.href = r.url;
+  } catch (e) { m.className = 'banner bad'; m.textContent = e.message; }
+};
+
+async function unlock() {
+  const err = $('#gateErr'); err.classList.add('hidden');
+  try {
+    await api('/api/unlock', { method: 'POST', body: JSON.stringify({ code: $('#gateCode').value }) });
+    location.reload();
+  } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+}
+$('#gateBtn').onclick = unlock;
+$('#gateCode').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+
+api('/api/config').then(c => {
+  cfg = c;
+  if (c.locked) {
+    $('#title').textContent = c.event_title;
+    $('#formCard').classList.add('hidden');
+    $('#gateCard').classList.remove('hidden');
+    return;
+  }
+  renderConfig();
+}).catch(() => {
+  $('#closed').textContent = 'Gagal memuat data event. Muat ulang halaman.'; $('#closed').classList.remove('hidden');
+});
+</script>
+</body>
+</html>
