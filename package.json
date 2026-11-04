@@ -6,6 +6,7 @@
     "dev": "wrangler dev --local --persist-to .wrangler/state",
     "db:local": "wrangler d1 migrations apply ichiban-tiket --local --persist-to .wrangler/state",
     "db:remote": "wrangler d1 migrations apply ichiban-tiket --remote",
+    "build": "echo Tidak ada langkah build",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
