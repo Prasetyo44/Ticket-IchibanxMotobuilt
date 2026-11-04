@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "ichiban-tiket-app",
+  "name": "ichiban-tiket",
   "main": "src/index.js",
   "compatibility_date": "2025-09-01",
   // Hanya bisa dibuka lewat custom domain (alamat workers.dev dimatikan supaya tidak ada pintu kedua)
