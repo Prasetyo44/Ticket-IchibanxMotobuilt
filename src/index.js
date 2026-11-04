@@ -466,11 +466,25 @@ async function readJson(req, max = 1_000_000) {
   }
 }
 
+// Alamat halaman admin. Isi variabel ADMIN_PATH di Cloudflare (mis. /pnl-x7k2m9q4w8t3) agar /admin tidak bisa ditebak.
+function adminPath(env) {
+  const v = String(env.ADMIN_PATH || '').trim().replace(/\/+$/, '');
+  return /^\/[A-Za-z0-9_-]{8,64}$/.test(v) ? v : '/admin';
+}
+
 async function handle(req, env, ctx) {
   const url = new URL(req.url);
   const { pathname: p } = url;
   const m = req.method;
   let g;
+
+  /* ---- Halaman admin (alamat rahasia; /admin biasa dibuat 404 bila ADMIN_PATH diisi) ---- */
+  const ap = adminPath(env);
+  if (m === 'GET' && (p === ap || p === ap + '/')) {
+    const res = await env.ASSETS.fetch(new Request(new URL('/admin', url), { headers: req.headers }));
+    return new Response(res.body, { status: res.status, headers: new Headers({ ...Object.fromEntries(res.headers), 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' }) });
+  }
+  if (p === '/admin' || p === '/admin.html' || p.startsWith('/admin/')) return new Response('Tidak ditemukan', { status: 404, headers: { 'X-Robots-Tag': 'noindex' } });
 
   /* ---- Halaman tiket ---- */
   if (m === 'GET' && p.startsWith('/t/')) {

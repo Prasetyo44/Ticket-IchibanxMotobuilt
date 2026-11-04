@@ -60,7 +60,7 @@ Yang melindungi bukan alamat acak saja, tapi gabungan ini:
 5. Tiket hanya terbuka lewat link berisi token acak panjang.
 
 ## 6. Sebelum dibuka ke karyawan
-1. Buka `/admin`, login dengan `ADMIN_PASSWORD`.
+1. Buka halaman admin (`/admin`, atau alamat rahasia yang kamu isi di variabel `ADMIN_PATH`), login dengan `ADMIN_PASSWORD`.
 2. **Stok QR IMOS**: upload semua file dari IMOS (maksimal 1 MB per file).
 3. **Pengaturan**: tanggal, tempat, kuota, batas waktu pendaftaran, dan **Kode akses karyawan**.
 4. **Karyawan**: tempel `NIK, Nama, Bagian` supaya hanya karyawan resmi yang bisa daftar.

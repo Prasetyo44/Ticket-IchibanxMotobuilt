@@ -9,7 +9,7 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/f/*", "/t/*"]
+    "run_worker_first": ["/api/*", "/f/*", "/t/*", "/admin", "/admin/*", "/admin.html"]
   },
   "d1_databases": [
     {

@@ -18,7 +18,7 @@ Website tiket event IMOS untuk karyawan PT Warnatama Cemerlang. Berjalan penuh d
 |---|---|---|
 | `/` | Karyawan | Form pendaftaran + "Buka tiket saya" |
 | `/t/<token>` | Karyawan & tamu | E-ticket berisi QR dari IMOS, tombol "Batalkan tiket saya" |
-| `/admin` | Admin | Ringkasan, peserta, karyawan, stok QR IMOS, pengaturan |
+| `/admin` (atau alamat rahasia dari `ADMIN_PATH`) | Admin | Ringkasan, peserta, karyawan, stok QR IMOS, pengaturan |
 
 ## Aturan yang dijalankan sistem
 
