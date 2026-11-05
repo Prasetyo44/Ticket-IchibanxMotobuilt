@@ -468,7 +468,8 @@ async function readJson(req, max = 1_000_000) {
 
 // Alamat halaman admin. Isi variabel ADMIN_PATH di Cloudflare (mis. /pnl-x7k2m9q4w8t3) agar /admin tidak bisa ditebak.
 function adminPath(env) {
-  const v = String(env.ADMIN_PATH || '').trim().replace(/\/+$/, '');
+  let v = String(env.ADMIN_PATH || '').trim().replace(/\/+$/, '');
+  if (v && !v.startsWith('/')) v = '/' + v;
   return /^\/[A-Za-z0-9_-]{8,64}$/.test(v) ? v : '/admin';
 }
 

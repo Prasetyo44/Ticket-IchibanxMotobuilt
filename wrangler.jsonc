@@ -5,6 +5,7 @@
   "compatibility_date": "2025-09-01",
   // Hanya bisa dibuka lewat custom domain (alamat workers.dev dimatikan supaya tidak ada pintu kedua)
   "workers_dev": true,
+  "keep_vars": true,
   "preview_urls": false,
   "assets": {
     "directory": "./public",
