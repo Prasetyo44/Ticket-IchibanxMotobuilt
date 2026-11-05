@@ -319,3 +319,6 @@ table.t tr.cancelled td:last-child, table.t tr.cancelled td:last-child * { opaci
 
 .qr-plate, .qr-plate img { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .qr-gone { margin: 14px 0; padding: 26px 14px; border: 2px dashed #b3261e; border-radius: 12px; color: #b3261e; font-weight: 700; text-align: center; }
+
+.copyright { text-align: center; font-size: 12.5px; padding: 6px 16px 28px; color: var(--muted); letter-spacing: .02em; }
+body.moto .copyright { color: rgba(255,255,255,.72); }
