@@ -43,7 +43,7 @@
     <!-- Ringkasan -->
     <section id="t-summary">
       <div class="stats" id="stats"></div>
-      <div class="card kar"><h2>Pendaftar per bagian</h2><p class="sub">Jumlah tiket per bagian.</p><div class="bars" id="bars"></div></div>
+      <div class="card"><h2 id="ttlDept">Pendaftar per bagian</h2><p class="sub" id="subDept">Jumlah tiket per bagian.</p><div class="bars" id="bars"></div></div>
       <div class="card"><h2>Link penting</h2>
         <p class="sub" style="margin:0"><span id="lblShare">Bagikan ke karyawan</span>: <b id="linkForm"></b></p>
       </div>
@@ -58,7 +58,7 @@
         <a class="btn sm dark" href="/api/admin/export.csv" style="text-decoration:none">⬇ Export CSV</a>
       </div>
       <div class="tbl-wrap"><table class="t"><thead><tr>
-        <th>Waktu</th><th id="thWho">Karyawan</th><th class="kar">Bagian</th><th>Tiket / Tamu</th><th>Kontak</th><th></th>
+        <th>Waktu</th><th id="thWho">Karyawan</th><th class="kar">Bagian</th><th class="umumonly">Komunitas</th><th>Tiket / Tamu</th><th>Kontak</th><th></th>
       </tr></thead><tbody id="regRows"></tbody></table></div>
     </section>
 
@@ -173,7 +173,9 @@ function applyMode(mode) {
   document.title = 'Admin Tiket Umum';
   $('#lblShare').textContent = 'Bagikan ke masyarakat umum';
   $('#thWho').textContent = 'Pendaftar';
-  $('#q').placeholder = 'Cari nama / HP / email…';
+  $('#ttlDept').textContent = 'Tiket per komunitas';
+  $('#subDept').textContent = 'Pendaftar tanpa komunitas dihitung sebagai "Umum".';
+  $('#q').placeholder = 'Cari nama / komunitas / HP / email…';
 }
 function openTab(t) {
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
@@ -227,6 +229,7 @@ async function loadRegs() {
       el('td', { textContent: fmt(r.created_at) }),
       el('td', {}, el('b', { textContent: r.name }), el('div', { className: 'small', textContent: UMUM ? '' : r.nik })),
       el('td', { className: 'kar', textContent: r.dept }),
+      el('td', { className: 'umumonly', textContent: r.dept === 'Umum' ? '—' : r.dept }),
       el('td', {}, el('b', { textContent: r.ticket_count + ' tiket' }), el('div', { className: 'small', textContent: r.guest_name ? 'Tamu: ' + r.guest_name : '—' })),
       el('td', {}, el('div', { textContent: r.phone }), el('div', { className: 'small', textContent: r.email })),
       el('td', {}, act));

@@ -51,6 +51,11 @@
           <input type="text" id="name" name="name" autocomplete="name" required>
           <div class="errmsg"></div>
         </div>
+        <div class="field hidden" data-f="community" id="communityBox">
+          <label class="f" for="community">Komunitas <span class="opt">(opsional)</span></label>
+          <input type="text" id="community" name="community" maxlength="60" placeholder="Nama komunitas / klub, kosongkan jika individu">
+          <div class="errmsg"></div>
+        </div>
         <div class="field" data-f="dept">
           <label class="f" for="dept">Bagian</label>
           <select id="dept" name="dept" required><option value="">Pilih bagian…</option></select>
@@ -186,6 +191,7 @@ function applyPublic() {
   $('label[for=guest_name]').textContent = 'Nama tamu yang ikut';
   const gl = document.createElement('div'); gl.id = 'guestList'; $('#guest_name').after(gl);
   document.querySelectorAll('[data-f="nik"],[data-f="dept"],[data-f="address"]').forEach(e => e.classList.add('hidden'));
+  $('#communityBox').classList.remove('hidden');
   $('#eyebrow').textContent = 'Pendaftaran Tiket • Terbuka untuk Umum';
   $('#intro').innerHTML = `Setiap orang mendapat <b>maksimal ${max} tiket</b>${max > 1 ? ` (untuk kamu dan ${max - 1} tamu)` : ''}. Tiket (QR Code) langsung muncul di website setelah form dikirim, tidak dikirim lewat WhatsApp atau email. Simpan link halaman tiketmu, atau buka lagi lewat tombol "Buka tiket saya" dengan email dan nomor HP.`;
   $('#rWho').textContent = 'Email'; $('#rNik').type = 'email'; $('#rNik').removeAttribute('autocapitalize');
@@ -244,7 +250,7 @@ form.addEventListener('submit', async e => {
   e.preventDefault();
   clearErrs();
   const body = {
-    nik: $('#nik').value, name: $('#name').value, dept: $('#dept').value, address: $('#address').value,
+    nik: $('#nik').value, name: $('#name').value, dept: $('#dept').value, community: $('#community').value, address: $('#address').value,
     email: $('#email').value, phone: $('#phone').value,
     ticket_count: ticketCount(),
     guest_names: [...document.querySelectorAll('.gname')].map(i => i.value),

@@ -586,7 +586,7 @@ async function handle(req, env, ctx) {
     const b = await readJson(req, 50_000);
     const umum = modeOf(env) === 'umum';
     const d = {
-      nik: umum ? '' : normalizeNik(b.nik), name: clean(b.name, 80), dept: umum ? 'Umum' : clean(b.dept, 60), address: umum ? '-' : clean(b.address, 300),
+      nik: umum ? '' : normalizeNik(b.nik), name: clean(b.name, 80), dept: umum ? (clean(b.community, 60) || 'Umum') : clean(b.dept, 60), address: umum ? '-' : clean(b.address, 300),
       email: clean(b.email, 120).toLowerCase(), phone: normalizePhone(b.phone), ticket_count: Number(b.ticket_count),
       guest_name: clean(b.guest_name, 80), notes: clean(b.notes, 200),
     };
@@ -737,13 +737,13 @@ async function handle(req, env, ctx) {
       const rows = await adminList(env, '', url.origin);
       const um = modeOf(env) === 'umum';
       const head = um
-        ? ['No', 'Waktu Daftar', 'Nama', 'Email', 'No HP', 'Jumlah Tiket', 'Nama Tamu', 'Catatan', 'Status']
+        ? ['No', 'Waktu Daftar', 'Nama', 'Komunitas', 'Email', 'No HP', 'Jumlah Tiket', 'Nama Tamu', 'Catatan', 'Status']
         : ['No', 'Waktu Daftar', 'ID Karyawan', 'Nama', 'Bagian', 'Alamat', 'Email', 'No HP', 'Jumlah Tiket', 'Nama Tamu', 'Catatan', 'Status'];
       const lines = [head.map(csvCell).join(',')];
       rows.slice().reverse().forEach((r, i) => {
         const t = new Date(r.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
         lines.push((um
-          ? [i + 1, t, r.name, r.email, r.phone, r.ticket_count, r.guest_name, r.notes, r.status]
+          ? [i + 1, t, r.name, r.dept === 'Umum' ? '' : r.dept, r.email, r.phone, r.ticket_count, r.guest_name, r.notes, r.status]
           : [i + 1, t, r.nik, r.name, r.dept, r.address, r.email, r.phone, r.ticket_count, r.guest_name, r.notes, r.status]
         ).map(csvCell).join(','));
       });
