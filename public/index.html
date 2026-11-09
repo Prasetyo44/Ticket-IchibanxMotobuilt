@@ -14,7 +14,7 @@
 <body class="moto">
 <header class="hero">
   <div class="wrap">
-    <div class="eyebrow">Pendaftaran Tiket • Khusus Karyawan</div>
+    <div class="eyebrow" id="eyebrow">Pendaftaran Tiket • Khusus Karyawan</div>
     <h1 id="title" class="moto-title">Ichiban x Motobuilt</h1>
     <img class="poster-img" src="/img/poster.jpg" width="1080" height="1350" alt="Poster Ichiban Paint Motobuilt Modification Contest 2026 — Moto Built Fest 2026, 20–29 November 2026, ICE BSD City">
     <div class="chips" id="chips"></div>
@@ -37,7 +37,7 @@
   <section class="card" id="formCard">
     <div id="closed" class="banner bad hidden"></div>
     <h2>Isi data kamu</h2>
-    <p class="sub">Setiap karyawan mendapat <b>maksimal 2 tiket</b> (untuk kamu dan 1 tamu). Tiket (QR Code) langsung muncul di website setelah form dikirim, tidak dikirim lewat WhatsApp atau email. Butuh lebih dari 2 tiket? Daftar dulu, lalu ajukan tiket tambahan lewat halaman tiketmu. HRD yang memutuskan.</p>
+    <p class="sub" id="intro">Setiap karyawan mendapat <b>maksimal 2 tiket</b> (untuk kamu dan 1 tamu). Tiket (QR Code) langsung muncul di website setelah form dikirim, tidak dikirim lewat WhatsApp atau email. Butuh lebih dari 2 tiket? Daftar dulu, lalu ajukan tiket tambahan lewat halaman tiketmu. HRD yang memutuskan.</p>
 
     <form id="form" novalidate autocomplete="on">
       <div class="grid">
@@ -130,8 +130,8 @@
 
 <dialog id="resendDlg">
   <h2 style="margin-bottom:4px">Buka tiket saya</h2>
-  <p class="sub" style="margin:0 0 14px;color:var(--muted);font-size:14px">Masukkan ID karyawan dan nomor HP yang kamu pakai saat mendaftar.</p>
-  <div class="field" style="margin-bottom:12px"><label class="f" for="rNik">ID Karyawan</label><input type="text" id="rNik" autocapitalize="characters"></div>
+  <p class="sub" id="rSub" style="margin:0 0 14px;color:var(--muted);font-size:14px">Masukkan ID karyawan dan nomor HP yang kamu pakai saat mendaftar.</p>
+  <div class="field" style="margin-bottom:12px"><label class="f" for="rNik" id="rWho">ID Karyawan</label><input type="text" id="rNik" autocapitalize="characters"></div>
   <div class="field" style="margin-bottom:12px"><label class="f" for="rPhone">No. HP saat mendaftar</label><input type="tel" id="rPhone" inputmode="tel"></div>
   <div id="rMsg" class="banner ok hidden"></div>
   <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -163,7 +163,24 @@ function clearErrs() {
   $('#formErr').classList.add('hidden');
 }
 
+// Mode umum: identitas = email + No. HP (tanpa ID karyawan, bagian, alamat); anti-bot Turnstile bila diaktifkan
+function applyPublic() {
+  document.querySelectorAll('[data-f="nik"],[data-f="dept"],[data-f="address"]').forEach(e => e.classList.add('hidden'));
+  $('#eyebrow').textContent = 'Pendaftaran Tiket • Terbuka untuk Umum';
+  $('#intro').innerHTML = 'Setiap orang mendapat <b>maksimal 2 tiket</b> (untuk kamu dan 1 tamu). Tiket (QR Code) langsung muncul di website setelah form dikirim, tidak dikirim lewat WhatsApp atau email. Simpan link halaman tiketmu, atau buka lagi lewat tombol "Buka tiket saya" dengan email dan nomor HP.';
+  $('#rWho').textContent = 'Email'; $('#rNik').type = 'email'; $('#rNik').removeAttribute('autocapitalize');
+  $('#rSub').textContent = 'Masukkan email dan nomor HP yang kamu pakai saat mendaftar.';
+  if (cfg.turnstile_site_key) {
+    const box = document.createElement('div');
+    box.className = 'cf-turnstile'; box.dataset.sitekey = cfg.turnstile_site_key; box.style.marginBottom = '12px';
+    $('#formErr').parentNode.insertBefore(box, $('#formErr'));
+    const sc = document.createElement('script');
+    sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'; sc.async = true; sc.defer = true; document.head.append(sc);
+  }
+}
+
 function renderConfig() {
+  if (cfg.mode === 'umum') applyPublic();
   document.title = 'Tiket ' + cfg.event_title;
   $('#title').textContent = cfg.event_title;
   const chips = [];
@@ -210,15 +227,17 @@ form.addEventListener('submit', async e => {
     email: $('#email').value, phone: $('#phone').value,
     ticket_count: Number($('input[name=ticket_count]:checked')?.value),
     guest_name: $('#guest_name').value, notes: $('#notes').value, consent: $('#consent').checked,
+    turnstile: document.querySelector('[name="cf-turnstile-response"]')?.value || '',
   };
+  const umum = cfg.mode === 'umum';
   // validasi cepat di sisi klien (server tetap memvalidasi ulang)
   const quick = [
-    ['nik', !body.nik.trim(), 'ID karyawan wajib diisi.'],
+    ['nik', !umum && !body.nik.trim(), 'ID karyawan wajib diisi.'],
     ['name', body.name.trim().length < 2, 'Nama lengkap wajib diisi.'],
-    ['dept', !body.dept, 'Pilih bagian.'],
+    ['dept', !umum && !body.dept, 'Pilih bagian.'],
     ['phone', !body.phone.trim(), 'Nomor HP wajib diisi.'],
     ['email', !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email.trim()), 'Format email tidak valid.'],
-    ['address', body.address.trim().length < 5, 'Alamat wajib diisi.'],
+    ['address', !umum && body.address.trim().length < 5, 'Alamat wajib diisi.'],
     ['ticket_count', ![1, 2].includes(body.ticket_count), 'Pilih jumlah tiket.'],
     ['guest_name', body.ticket_count === 2 && body.guest_name.trim().length < 2, 'Nama tamu wajib diisi untuk 2 tiket.'],
     ['consent', !body.consent, 'Centang persetujuan terlebih dahulu.'],
@@ -232,6 +251,7 @@ form.addEventListener('submit', async e => {
   } catch (err) {
     setErr(err.field || '_', err.message);
     $('.field.err')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.turnstile?.reset?.();
   } finally { btn.disabled = false; btn.textContent = 'Daftar & lihat tiket'; }
 });
 
@@ -242,7 +262,7 @@ $('#rClose').onclick = () => dlg.close();
 $('#rSend').onclick = async () => {
   const m = $('#rMsg'); m.className = 'banner ok'; m.textContent = 'Memproses…';
   try {
-    const r = await api('/api/lookup', { method: 'POST', body: JSON.stringify({ nik: $('#rNik').value, phone: $('#rPhone').value }) });
+    const r = await api('/api/lookup', { method: 'POST', body: JSON.stringify({ nik: $('#rNik').value, email: $('#rNik').value, phone: $('#rPhone').value }) });
     location.href = r.url;
   } catch (e) { m.className = 'banner bad'; m.textContent = e.message; }
 };

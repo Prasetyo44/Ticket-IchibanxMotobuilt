@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ichiban-tiket-umum",
+  "main": "src/index.js",
+  "compatibility_date": "2025-09-01",
+  "workers_dev": true,
+  "keep_vars": true,
+  "preview_urls": false,
+  "vars": { "MODE": "umum" },
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/f/*", "/t/*", "/admin", "/admin/*", "/admin.html", "/", "/index.html", "/robots.txt"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ichiban-tiket-umum",
+      "database_id": "ISI-DENGAN-ID-DATABASE-D1-UMUM",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

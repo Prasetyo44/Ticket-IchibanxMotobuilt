@@ -198,7 +198,8 @@ async function snapshot(env) {
 
 async function publicConfig(env, req) {
   const { s, qr, cap, remaining, open } = await snapshot(env);
-  if (!(await hasGate(env, req, s))) return { locked: true, event_title: s.event_title };
+  const mode = modeOf(env);
+  if (!(await hasGate(env, req, s))) return { locked: true, event_title: s.event_title, mode };
   let closedReason = null;
   if (!open) closedReason = 'Pendaftaran sudah ditutup.';
   else if (qr.total === 0) closedReason = 'Tiket belum tersedia. Silakan coba lagi nanti.';
@@ -206,7 +207,8 @@ async function publicConfig(env, req) {
   return {
     event_title: s.event_title, event_date: s.event_date, event_time: s.event_time, venue: s.venue,
     venue_address: s.venue_address, dresscode: s.dresscode, info: s.info, contact: s.contact,
-    locked: false, departments: departmentsOf(s), capacity: cap, remaining,
+    locked: false, mode, turnstile_site_key: mode === 'umum' ? String(env.TURNSTILE_SITE_KEY || '') : '',
+    departments: departmentsOf(s), capacity: cap, remaining,
     registration_deadline: s.registration_deadline, open: open && remaining !== 0, closedReason,
   };
 }
@@ -215,6 +217,8 @@ async function publicConfig(env, req) {
 
 async function register(env, d, req) {
   const DB = env.DB;
+  const umum = modeOf(env) === 'umum';
+  const who = umum ? 'nomor HP' : 'ID karyawan';
   const pre = await DB.batch([
     DB.prepare('SELECT key, value FROM settings'),
     DB.prepare('SELECT COUNT(*) AS c FROM employees'),
@@ -227,19 +231,25 @@ async function register(env, d, req) {
     DB.prepare("SELECT COALESCE(SUM(status = 'available'), 0) AS available FROM qr_stock"),
   ]);
   const s = parseSettings(pre[0].results);
-  if (!(await hasGate(env, req, s))) throw new HttpError(403, 'Masukkan kode akses karyawan terlebih dahulu (muat ulang halaman).');
+  if (!(await hasGate(env, req, s))) throw new HttpError(403, 'Masukkan kode akses terlebih dahulu (muat ulang halaman).');
   if (!isOpen(s)) throw new HttpError(403, 'Pendaftaran sudah ditutup.');
-  if (!departmentsOf(s).includes(d.dept)) throw new HttpError(400, 'Bagian tidak valid.', 'dept');
-  if (pre[1].results[0].c > 0 && !pre[2].results.length) {
+  if (!umum && !departmentsOf(s).includes(d.dept)) throw new HttpError(400, 'Bagian tidak valid.', 'dept');
+  if (!umum && pre[1].results[0].c > 0 && !pre[2].results.length) {
     throw new HttpError(403, 'ID karyawan tidak ditemukan di daftar karyawan. Hubungi HRD / IT.', 'nik');
   }
   if (pre[3].results.length) {
-    throw new HttpError(409, 'ID karyawan ini sudah mendaftar (maksimal 2 tiket per karyawan). Tiketmu bisa dibuka lewat tombol "Buka tiket saya".', 'nik');
+    throw new HttpError(409, umum
+      ? 'Nomor HP ini sudah mendaftar (maksimal 2 tiket per orang). Tiketmu bisa dibuka lewat tombol "Buka tiket saya".'
+      : 'ID karyawan ini sudah mendaftar (maksimal 2 tiket per karyawan). Tiketmu bisa dibuka lewat tombol "Buka tiket saya".', umum ? 'phone' : 'nik');
   }
   if (pre[4].results.length && !pre[5].results.length) {
-    throw new HttpError(403, 'Pendaftaran untuk ID karyawan ini pernah dibatalkan, jadi tidak bisa mendaftar lagi. Hubungi panitia kalau perlu tiket baru.', 'nik');
+    throw new HttpError(403, `Pendaftaran untuk ${who} ini pernah dibatalkan, jadi tidak bisa mendaftar lagi. Hubungi panitia kalau perlu tiket baru.`, umum ? 'phone' : 'nik');
   }
   if (pre[6].results.length) throw new HttpError(409, 'Nomor HP ini sudah dipakai pendaftar lain.', 'phone');
+  if (umum) {
+    const em = await DB.prepare("SELECT 1 AS x FROM registrations WHERE email = ? AND status = 'active'").bind(d.email).first();
+    if (em) throw new HttpError(409, 'Email ini sudah dipakai pendaftar lain.', 'email');
+  }
 
   const cap = parseInt(s.capacity, 10) || 0;
   let rem = pre[8].results[0].available;
@@ -250,7 +260,7 @@ async function register(env, d, req) {
   // Satu batch = satu transaksi: pendaftaran, pengambilan QR dari stok, dan pembuatan tiket berhasil semua atau batal semua.
   const token = randToken();
   const n = d.ticket_count;
-  const people = [{ seq: 1, kind: 'employee', holder: d.name }];
+  const people = [{ seq: 1, kind: umum ? 'public' : 'employee', holder: d.name }];
   if (n === 2) people.push({ seq: 2, kind: 'guest', holder: d.guest_name });
   const stmts = [
     DB.prepare(
@@ -281,7 +291,8 @@ async function register(env, d, req) {
   } catch (e) {
     const m = String(e.message || e);
     if (/guard\.x|NOT NULL constraint failed: guard/i.test(m)) throw new HttpError(409, 'Kuota tiket sudah habis.');
-    if (/registrations\.nik/i.test(m)) throw new HttpError(409, 'ID karyawan ini sudah mendaftar.', 'nik');
+    if (/registrations\.nik/i.test(m)) throw new HttpError(409, umum ? 'Nomor HP ini sudah mendaftar.' : 'ID karyawan ini sudah mendaftar.', umum ? 'phone' : 'nik');
+    if (/registrations\.email/i.test(m)) throw new HttpError(409, 'Email ini sudah dipakai pendaftar lain.', 'email');
     if (/registrations\.phone/i.test(m)) throw new HttpError(409, 'Nomor HP ini sudah dipakai pendaftar lain.', 'phone');
     throw e;
   }
@@ -304,12 +315,17 @@ async function cancelRegistration(env, id, by = 'admin') {
 }
 
 // Pemilik tiket dibuktikan dengan ID karyawan + No HP yang sama dengan saat mendaftar (link saja tidak cukup)
+// Mode umum: dibuktikan dengan email + No HP (bukan ID karyawan)
 async function verifyOwner(env, token, nik, phone) {
-  const reg = await env.DB.prepare('SELECT id, nik, phone, status FROM registrations WHERE token = ?').bind(token).first();
+  const umum = modeOf(env) === 'umum';
+  const reg = await env.DB.prepare('SELECT id, nik, email, phone, status FROM registrations WHERE token = ?').bind(token).first();
   if (!reg) throw new HttpError(404, 'Tiket tidak ditemukan.');
   if (reg.status !== 'active') throw new HttpError(409, 'Tiket ini sudah dibatalkan.');
-  if (reg.nik !== normalizeNik(nik) || reg.phone !== phone) {
-    throw new HttpError(403, 'Data tidak cocok. Isi ID karyawan dan nomor HP yang sama dengan saat mendaftar.');
+  const same = umum ? reg.email === clean(nik, 120).toLowerCase() : reg.nik === normalizeNik(nik);
+  if (!same || reg.phone !== phone) {
+    throw new HttpError(403, umum
+      ? 'Data tidak cocok. Isi email dan nomor HP yang sama dengan saat mendaftar.'
+      : 'Data tidak cocok. Isi ID karyawan dan nomor HP yang sama dengan saat mendaftar.');
   }
   return reg;
 }
@@ -466,6 +482,23 @@ async function readJson(req, max = 1_000_000) {
   }
 }
 
+// Mode situs: 'karyawan' (default) atau 'umum'. Diatur lewat variabel MODE pada Worker masing-masing.
+const modeOf = (env) => (String(env.MODE || '').trim().toLowerCase() === 'umum' ? 'umum' : 'karyawan');
+
+// Cloudflare Turnstile (anti-bot gratis). Aktif hanya bila TURNSTILE_SECRET diisi.
+async function verifyTurnstile(env, token, req) {
+  if (!env.TURNSTILE_SECRET) return;
+  if (!token) throw new HttpError(400, 'Selesaikan verifikasi "Saya bukan robot" terlebih dahulu.');
+  const fd = new FormData();
+  fd.append('secret', env.TURNSTILE_SECRET);
+  fd.append('response', String(token).slice(0, 2048));
+  const ip = req.headers.get('CF-Connecting-IP');
+  if (ip) fd.append('remoteip', ip);
+  const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: fd });
+  const j = await r.json().catch(() => ({}));
+  if (!j.success) throw new HttpError(400, 'Verifikasi gagal. Muat ulang halaman lalu coba lagi.');
+}
+
 // Alamat halaman admin. Isi variabel ADMIN_PATH di Cloudflare (mis. /pnl-x7k2m9q4w8t3) agar /admin tidak bisa ditebak.
 function adminPath(env) {
   let v = String(env.ADMIN_PATH || '').trim().replace(/\/+$/, '');
@@ -514,7 +547,31 @@ async function handle(req, env, ctx) {
     });
   }
 
-  if (!p.startsWith('/api/')) return env.ASSETS.fetch(req);
+  if (!p.startsWith('/api/')) {
+    // Mode umum + SEO_INDEX=1: halaman pendaftaran boleh ditemukan Google. Halaman tiket, file QR, API, dan admin tetap tersembunyi.
+    if (m === 'GET' && modeOf(env) === 'umum' && env.SEO_INDEX === '1') {
+      if (p === '/robots.txt') {
+        return new Response('User-agent: *\nAllow: /\nDisallow: /t/\nDisallow: /f/\nDisallow: /api/\n', {
+          headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
+        });
+      }
+      if (p === '/' || p === '/index.html') {
+        const res = await env.ASSETS.fetch(new Request(new URL('/', url), { headers: req.headers }));
+        const { results } = await env.DB.prepare('SELECT key, value FROM settings').all();
+        const s = parseSettings(results);
+        const desc = `Pendaftaran tiket ${s.event_title}${s.event_date ? ', ' + s.event_date : ''}${s.venue ? ' di ' + s.venue : ''}. Daftar online, tiket QR langsung muncul di website.`;
+        const e = (x) => String(x).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        let html = await res.text();
+        html = html.replace(/<meta name="robots"[^>]*>/,
+          `<meta name="robots" content="index, follow">\n<meta name="description" content="${e(desc)}">\n<meta property="og:title" content="${e('Tiket ' + s.event_title)}">\n<meta property="og:description" content="${e(desc)}">\n<meta property="og:type" content="website">\n<meta property="og:image" content="${url.origin}/img/poster.jpg">`);
+        const h = new Headers(res.headers);
+        h.delete('X-Robots-Tag'); h.delete('Content-Length');
+        h.set('Content-Type', 'text/html; charset=utf-8'); h.set('Cache-Control', 'public, max-age=300');
+        return new Response(html, { status: res.status, headers: h });
+      }
+    }
+    return env.ASSETS.fetch(req);
+  }
 
   /* ---- API publik ---- */
   if (m === 'GET' && p === '/api/config') return json(await publicConfig(env, req));
@@ -522,21 +579,23 @@ async function handle(req, env, ctx) {
   if (m === 'POST' && p === '/api/register') {
     await limit(env, req, 'register', 20);
     const b = await readJson(req, 50_000);
+    const umum = modeOf(env) === 'umum';
     const d = {
-      nik: normalizeNik(b.nik), name: clean(b.name, 80), dept: clean(b.dept, 60), address: clean(b.address, 300),
+      nik: umum ? '' : normalizeNik(b.nik), name: clean(b.name, 80), dept: umum ? 'Umum' : clean(b.dept, 60), address: umum ? '-' : clean(b.address, 300),
       email: clean(b.email, 120).toLowerCase(), phone: normalizePhone(b.phone), ticket_count: Number(b.ticket_count),
       guest_name: clean(b.guest_name, 80), notes: clean(b.notes, 200),
     };
-    if (!/^[A-Z0-9._/-]{3,30}$/.test(d.nik)) throw new HttpError(400, 'ID karyawan tidak valid (3–30 karakter huruf/angka).', 'nik');
+    if (!umum && !/^[A-Z0-9._/-]{3,30}$/.test(d.nik)) throw new HttpError(400, 'ID karyawan tidak valid (3–30 karakter huruf/angka).', 'nik');
     if (d.name.length < 2) throw new HttpError(400, 'Nama lengkap wajib diisi.', 'name');
     if (!d.dept) throw new HttpError(400, 'Pilih bagian.', 'dept');
-    if (d.address.length < 5) throw new HttpError(400, 'Alamat wajib diisi.', 'address');
+    if (!umum && d.address.length < 5) throw new HttpError(400, 'Alamat wajib diisi.', 'address');
     if (!isValidEmail(d.email)) throw new HttpError(400, 'Format email tidak valid.', 'email');
     if (!isValidPhone(d.phone)) throw new HttpError(400, 'Nomor HP/WhatsApp tidak valid (contoh: 0812 3456 7890).', 'phone');
     if (![1, 2].includes(d.ticket_count)) throw new HttpError(400, 'Pilih jumlah tiket 1 atau 2.', 'ticket_count');
     if (d.ticket_count === 2 && d.guest_name.length < 2) throw new HttpError(400, 'Nama tamu yang ikut wajib diisi untuk 2 tiket.', 'guest_name');
     if (d.ticket_count === 1) d.guest_name = '';
     if (b.consent !== true) throw new HttpError(400, 'Centang persetujuan data terlebih dahulu.', 'consent');
+    if (umum) { d.nik = d.phone; await verifyTurnstile(env, b.turnstile, req); } // mode umum: kunci identitas = No HP
     const r = await register(env, d, req);
     return json({ ok: true, ticket_count: d.ticket_count, url: `/t/${r.token}` }, 201);
   }
@@ -545,8 +604,9 @@ async function handle(req, env, ctx) {
   if (m === 'POST' && p === '/api/lookup') {
     await limit(env, req, 'lookup', 6);
     const b = await readJson(req, 10_000);
-    const reg = await env.DB.prepare("SELECT token FROM registrations WHERE nik = ? AND phone = ? AND status = 'active'")
-      .bind(normalizeNik(b.nik), normalizePhone(b.phone)).first();
+    const umum = modeOf(env) === 'umum';
+    const reg = await env.DB.prepare(`SELECT token FROM registrations WHERE ${umum ? 'email' : 'nik'} = ? AND phone = ? AND status = 'active'`)
+      .bind(umum ? clean(b.email, 120).toLowerCase() : normalizeNik(b.nik), normalizePhone(b.phone)).first();
     if (!reg) throw new HttpError(404, 'Data tidak cocok, atau pendaftaran sudah dibatalkan.');
     return json({ ok: true, url: `/t/${reg.token}` });
   }
@@ -555,12 +615,13 @@ async function handle(req, env, ctx) {
     await limit(env, req, 'cancel', 8);
     const b = await readJson(req, 10_000);
     if (b.confirm !== true) throw new HttpError(400, 'Konfirmasi pembatalan diperlukan.');
-    await cancelByToken(env, g[1], b.nik, normalizePhone(b.phone));
+    await cancelByToken(env, g[1], modeOf(env) === 'umum' ? b.email : b.nik, normalizePhone(b.phone));
     return json({ ok: true });
   }
 
   if (m === 'POST' && (g = p.match(/^\/api\/ticket\/([\w-]{1,64})\/request$/))) {
     await limit(env, req, 'request', 6);
+    if (modeOf(env) === 'umum') throw new HttpError(403, 'Tiket tambahan tidak tersedia untuk pendaftaran umum.');
     const b = await readJson(req, 10_000);
     await requestExtra(env, g[1], b.nik, normalizePhone(b.phone), b.guests, b.reason);
     return json({ ok: true }, 201);
@@ -591,6 +652,7 @@ async function handle(req, env, ctx) {
     ]);
     const s = parseSettings(snap.results);
     return json({
+      mode: modeOf(env),
       request: lastReq || null,
       event: { title: s.event_title, date: s.event_date, time: s.event_time, venue: s.venue, address: s.venue_address, dresscode: s.dresscode, info: s.info, contact: s.contact },
       registration: { name: reg.name, dept: reg.dept, status: reg.status },

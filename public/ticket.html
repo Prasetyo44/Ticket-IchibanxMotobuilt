@@ -44,7 +44,7 @@
 <dialog id="cancelDlg" class="noprint" style="color:#14162a">
   <h2 style="margin-bottom:4px">Batalkan tiket?</h2>
   <div class="banner bad" style="margin:10px 0 14px;font-size:14px">Semua tiket di pendaftaran ini (termasuk tiket tamu) langsung tidak berlaku dan tidak bisa dipakai lagi. Kamu <b>tidak bisa mendaftar ulang</b> kecuali panitia mengizinkan.</div>
-  <div class="field" style="margin-bottom:12px"><label class="f" for="cNik">ID Karyawan</label><input type="text" id="cNik" autocapitalize="characters"></div>
+  <div class="field" style="margin-bottom:12px"><label class="f" for="cNik" id="cWho">ID Karyawan</label><input type="text" id="cNik" autocapitalize="characters"></div>
   <div class="field" style="margin-bottom:12px"><label class="f" for="cPhone">No. HP saat mendaftar</label><input type="tel" id="cPhone" inputmode="tel"></div>
   <label style="display:flex;gap:8px;align-items:flex-start;font-size:14px;margin-bottom:12px"><input type="checkbox" id="cOk" style="margin-top:3px"> Saya mengerti dan ingin membatalkan tiket ini.</label>
   <div id="cMsg" class="banner bad hidden"></div>
@@ -114,17 +114,20 @@ fetch('/api/ticket/' + encodeURIComponent(token)).then(async r => {
         ...meta.map(m => el('div', { className: 'meta', textContent: m }))),
       el('div', { className: 'perf' }),
       el('div', { className: 'body' },
-        el('div', { className: 'who', textContent: t.kind === 'employee' ? 'Karyawan' : 'Tamu' }),
+        el('div', { className: 'who', textContent: t.kind === 'employee' ? 'Karyawan' : t.kind === 'public' ? 'Pendaftar' : 'Tamu' }),
         el('div', { className: 'name', textContent: t.holder }),
         ...qrBlock(t, cancelled),
         el('div', { style: 'margin-top:12px' }, badge),
         ...(d.event.dresscode ? [el('div', { className: 'dress', textContent: '👔 ' + d.event.dresscode })] : [])),
       el('div', { className: 'bar-teal' }, el('span', { textContent: '@MOTOBUILT.FEST' }), el('span', { textContent: 'Moto Built Fest 2026' }))));
   });
+  if (d.mode === 'umum') { $('#cWho').textContent = 'Email'; $('#cNik').type = 'email'; $('#cNik').removeAttribute('autocapitalize'); }
   if (!cancelled) {
     $('#cancelRow').classList.remove('hidden');
     const rq = d.request;
-    if (rq && rq.status === 'pending') {
+    if (d.mode === 'umum') {
+      // tiket tambahan tidak tersedia untuk pendaftaran umum
+    } else if (rq && rq.status === 'pending') {
       const s = $('#extraStatus'); s.textContent = `Permintaan ${rq.extra} tiket tambahan sedang menunggu keputusan HRD.`; s.classList.remove('hidden');
     } else {
       $('#extraRow').classList.remove('hidden');
@@ -164,7 +167,7 @@ $('#cGo').onclick = async () => {
   try {
     const r = await fetch('/api/ticket/' + encodeURIComponent(token) + '/cancel', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nik: $('#cNik').value, phone: $('#cPhone').value, confirm: true }),
+      body: JSON.stringify({ nik: $('#cNik').value, email: $('#cNik').value, phone: $('#cPhone').value, confirm: true }),
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Gagal membatalkan.');
