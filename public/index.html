@@ -164,10 +164,30 @@ function clearErrs() {
 }
 
 // Mode umum: identitas = email + No. HP (tanpa ID karyawan, bagian, alamat); anti-bot Turnstile bila diaktifkan
+function ticketCount() {
+  return cfg && cfg.mode === 'umum' ? Number($('#tcSel')?.value || 1) : Number($('input[name=ticket_count]:checked')?.value);
+}
+function buildGuests(n) {
+  $('#guestBox').classList.toggle('hidden', n < 2);
+  const wrap = $('#guestList');
+  const old = [...wrap.querySelectorAll('input')].map(i => i.value);
+  wrap.replaceChildren(...Array.from({ length: Math.max(0, n - 1) }, (_, i) =>
+    Object.assign(document.createElement('input'), { type: 'text', className: 'gname', placeholder: 'Nama lengkap tamu ' + (i + 1), value: old[i] || '', style: 'margin-bottom:8px' })));
+}
+
 function applyPublic() {
+  const max = Math.max(1, cfg.max_tickets || 2);
+  const lim = Math.max(1, cfg.remaining === null ? max : Math.min(max, cfg.remaining));
+  const sel = document.createElement('select'); sel.id = 'tcSel'; sel.name = 'tcSel';
+  for (let i = 1; i <= lim; i++) sel.append(new Option(i === 1 ? '1 tiket (hanya saya)' : `${i} tiket (saya + ${i - 1} tamu)`, i));
+  sel.value = String(Math.min(2, lim));
+  $('.seg').replaceWith(sel);
+  $('#guest_name').classList.add('hidden');
+  $('label[for=guest_name]').textContent = 'Nama tamu yang ikut';
+  const gl = document.createElement('div'); gl.id = 'guestList'; $('#guest_name').after(gl);
   document.querySelectorAll('[data-f="nik"],[data-f="dept"],[data-f="address"]').forEach(e => e.classList.add('hidden'));
   $('#eyebrow').textContent = 'Pendaftaran Tiket • Terbuka untuk Umum';
-  $('#intro').innerHTML = 'Setiap orang mendapat <b>maksimal 2 tiket</b> (untuk kamu dan 1 tamu). Tiket (QR Code) langsung muncul di website setelah form dikirim, tidak dikirim lewat WhatsApp atau email. Simpan link halaman tiketmu, atau buka lagi lewat tombol "Buka tiket saya" dengan email dan nomor HP.';
+  $('#intro').innerHTML = `Setiap orang mendapat <b>maksimal ${max} tiket</b>${max > 1 ? ` (untuk kamu dan ${max - 1} tamu)` : ''}. Tiket (QR Code) langsung muncul di website setelah form dikirim, tidak dikirim lewat WhatsApp atau email. Simpan link halaman tiketmu, atau buka lagi lewat tombol "Buka tiket saya" dengan email dan nomor HP.`;
   $('#rWho').textContent = 'Email'; $('#rNik').type = 'email'; $('#rNik').removeAttribute('autocapitalize');
   $('#rSub').textContent = 'Masukkan email dan nomor HP yang kamu pakai saat mendaftar.';
   if (cfg.turnstile_site_key) {
@@ -205,7 +225,7 @@ function renderConfig() {
   if (!cfg.open) {
     const c = $('#closed'); c.textContent = cfg.closedReason || 'Pendaftaran ditutup.'; c.classList.remove('hidden');
     form.querySelectorAll('input,select,textarea,button').forEach(el => el.disabled = true);
-  } else if (cfg.remaining === 1) {
+  } else if (cfg.mode !== 'umum' && cfg.remaining === 1) {
     $('input[name=ticket_count][value="2"]').disabled = true;
     $('input[name=ticket_count][value="1"]').checked = true;
   }
@@ -213,10 +233,11 @@ function renderConfig() {
 }
 
 function syncGuest() {
+  if (cfg && cfg.mode === 'umum') { buildGuests(ticketCount()); return; }
   const two = $('input[name=ticket_count]:checked')?.value === '2';
   $('#guestBox').classList.toggle('hidden', !two);
 }
-form.addEventListener('change', e => { if (e.target.name === 'ticket_count') syncGuest(); });
+form.addEventListener('change', e => { if (e.target.name === 'ticket_count' || e.target.id === 'tcSel') syncGuest(); });
 form.addEventListener('input', e => { const f = e.target.closest('.field'); if (f) { f.classList.remove('err'); $('.errmsg', f).textContent = ''; } });
 
 form.addEventListener('submit', async e => {
@@ -225,8 +246,9 @@ form.addEventListener('submit', async e => {
   const body = {
     nik: $('#nik').value, name: $('#name').value, dept: $('#dept').value, address: $('#address').value,
     email: $('#email').value, phone: $('#phone').value,
-    ticket_count: Number($('input[name=ticket_count]:checked')?.value),
-    guest_name: $('#guest_name').value, notes: $('#notes').value, consent: $('#consent').checked,
+    ticket_count: ticketCount(),
+    guest_names: [...document.querySelectorAll('.gname')].map(i => i.value),
+    guest_name: cfg.mode === 'umum' ? (document.querySelector('.gname')?.value || '') : $('#guest_name').value, notes: $('#notes').value, consent: $('#consent').checked,
     turnstile: document.querySelector('[name="cf-turnstile-response"]')?.value || '',
   };
   const umum = cfg.mode === 'umum';
@@ -238,8 +260,8 @@ form.addEventListener('submit', async e => {
     ['phone', !body.phone.trim(), 'Nomor HP wajib diisi.'],
     ['email', !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email.trim()), 'Format email tidak valid.'],
     ['address', !umum && body.address.trim().length < 5, 'Alamat wajib diisi.'],
-    ['ticket_count', ![1, 2].includes(body.ticket_count), 'Pilih jumlah tiket.'],
-    ['guest_name', body.ticket_count === 2 && body.guest_name.trim().length < 2, 'Nama tamu wajib diisi untuk 2 tiket.'],
+    ['ticket_count', umum ? !(body.ticket_count >= 1) : ![1, 2].includes(body.ticket_count), 'Pilih jumlah tiket.'],
+    ['guest_name', umum ? (body.ticket_count > 1 && body.guest_names.slice(0, body.ticket_count - 1).some(x => x.trim().length < 2)) : (body.ticket_count === 2 && body.guest_name.trim().length < 2), umum ? 'Isi nama lengkap semua tamu yang ikut.' : 'Nama tamu wajib diisi untuk 2 tiket.'],
     ['consent', !body.consent, 'Centang persetujuan terlebih dahulu.'],
   ].filter(x => x[1]);
   if (quick.length) { quick.forEach(([f, , m]) => setErr(f, m)); $('.field.err')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }

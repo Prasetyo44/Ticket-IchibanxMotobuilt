@@ -155,6 +155,7 @@ const DEFAULTS = {
   info: 'Tunjukkan QR Code pada tiket kepada panitia saat masuk. Satu QR Code hanya berlaku untuk satu orang dan satu kali scan.',
   contact: 'Tim IT / HRD',
   capacity: '0', // total tiket; 0 = tanpa batas
+  max_tickets: '2', // khusus mode umum: maksimal tiket per orang (1–10)
   access_code: '', // kode akses karyawan (dibagikan HRD); kosong = tanpa kode
   registration_deadline: '', // YYYY-MM-DDTHH:mm (WIB); kosong = tanpa batas
   registration_open: '1',
@@ -164,6 +165,7 @@ const DEFAULTS = {
   ].join('\n'),
 };
 
+const maxTickets = (s) => Math.min(10, Math.max(1, parseInt(s.max_tickets, 10) || 2));
 const parseSettings = (rows) => {
   const out = { ...DEFAULTS };
   for (const r of rows) if (r.key in DEFAULTS) out[r.key] = r.value;
@@ -208,6 +210,7 @@ async function publicConfig(env, req) {
     event_title: s.event_title, event_date: s.event_date, event_time: s.event_time, venue: s.venue,
     venue_address: s.venue_address, dresscode: s.dresscode, info: s.info, contact: s.contact,
     locked: false, mode, turnstile_site_key: mode === 'umum' ? String(env.TURNSTILE_SITE_KEY || '') : '',
+    max_tickets: mode === 'umum' ? maxTickets(s) : 2,
     departments: departmentsOf(s), capacity: cap, remaining,
     registration_deadline: s.registration_deadline, open: open && remaining !== 0, closedReason,
   };
@@ -255,13 +258,15 @@ async function register(env, d, req) {
   let rem = pre[8].results[0].available;
   if (cap) rem = Math.min(rem, Math.max(0, cap - pre[7].results[0].tickets));
   if (rem <= 0) throw new HttpError(409, 'Kuota tiket sudah habis.');
-  if (d.ticket_count > rem) throw new HttpError(409, `Sisa tiket hanya ${rem}. Pilih 1 tiket.`, 'ticket_count');
+  if (umum && d.ticket_count > maxTickets(s)) throw new HttpError(400, `Maksimal ${maxTickets(s)} tiket per orang.`, 'ticket_count');
+  if (d.ticket_count > rem) throw new HttpError(409, `Sisa tiket hanya ${rem}. Kurangi jumlah tiket.`, 'ticket_count');
 
   // Satu batch = satu transaksi: pendaftaran, pengambilan QR dari stok, dan pembuatan tiket berhasil semua atau batal semua.
   const token = randToken();
   const n = d.ticket_count;
   const people = [{ seq: 1, kind: umum ? 'public' : 'employee', holder: d.name }];
-  if (n === 2) people.push({ seq: 2, kind: 'guest', holder: d.guest_name });
+  if (umum) d.guest_names.forEach((g, i) => people.push({ seq: i + 2, kind: 'guest', holder: g }));
+  else if (n === 2) people.push({ seq: 2, kind: 'guest', holder: d.guest_name });
   const stmts = [
     DB.prepare(
       `INSERT INTO registrations(token, nik, name, dept, address, email, phone, ticket_count, guest_name, notes, created_at)
@@ -591,9 +596,19 @@ async function handle(req, env, ctx) {
     if (!umum && d.address.length < 5) throw new HttpError(400, 'Alamat wajib diisi.', 'address');
     if (!isValidEmail(d.email)) throw new HttpError(400, 'Format email tidak valid.', 'email');
     if (!isValidPhone(d.phone)) throw new HttpError(400, 'Nomor HP/WhatsApp tidak valid (contoh: 0812 3456 7890).', 'phone');
-    if (![1, 2].includes(d.ticket_count)) throw new HttpError(400, 'Pilih jumlah tiket 1 atau 2.', 'ticket_count');
-    if (d.ticket_count === 2 && d.guest_name.length < 2) throw new HttpError(400, 'Nama tamu yang ikut wajib diisi untuk 2 tiket.', 'guest_name');
-    if (d.ticket_count === 1) d.guest_name = '';
+    if (umum) {
+      // Mode umum: jumlah tiket per orang bisa diatur admin (maks_tiket 1–10); satu nama tamu per tiket tambahan
+      if (!Number.isInteger(d.ticket_count) || d.ticket_count < 1 || d.ticket_count > 10) throw new HttpError(400, 'Jumlah tiket tidak valid.', 'ticket_count');
+      const gn = (Array.isArray(b.guest_names) ? b.guest_names : [b.guest_name]).map((x) => clean(x, 80)).filter(Boolean);
+      const need = d.ticket_count - 1;
+      if (gn.length < need || gn.slice(0, need).some((x) => x.length < 2)) throw new HttpError(400, `Isi nama lengkap untuk ${need} tamu yang ikut.`, 'guest_name');
+      d.guest_names = gn.slice(0, need);
+      d.guest_name = d.guest_names.join(', ');
+    } else {
+      if (![1, 2].includes(d.ticket_count)) throw new HttpError(400, 'Pilih jumlah tiket 1 atau 2.', 'ticket_count');
+      if (d.ticket_count === 2 && d.guest_name.length < 2) throw new HttpError(400, 'Nama tamu yang ikut wajib diisi untuk 2 tiket.', 'guest_name');
+      if (d.ticket_count === 1) d.guest_name = '';
+    }
     if (b.consent !== true) throw new HttpError(400, 'Centang persetujuan data terlebih dahulu.', 'consent');
     if (umum) { d.nik = d.phone; await verifyTurnstile(env, b.turnstile, req); } // mode umum: kunci identitas = No HP
     const r = await register(env, d, req);
@@ -741,13 +756,14 @@ async function handle(req, env, ctx) {
       if (Number.isNaN(cap) || cap < 0) throw new HttpError(400, 'Kuota harus angka ≥ 0 (0 = tanpa batas).');
       const depts = cleanMultiline(b.departments, 1500).split('\n').map((x) => clean(x, 60)).filter(Boolean);
       if (!depts.length) throw new HttpError(400, 'Daftar bagian tidak boleh kosong.');
+      const mt = Math.min(10, Math.max(1, parseInt(b.max_tickets, 10) || 2));
       const dl = clean(b.registration_deadline, 20);
       if (dl && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dl)) throw new HttpError(400, 'Format batas pendaftaran tidak valid.');
       const vals = {
         event_title: clean(b.event_title, 120) || DEFAULTS.event_title,
         event_date: clean(b.event_date, 80), event_time: clean(b.event_time, 60), venue: clean(b.venue, 120),
         venue_address: clean(b.venue_address, 200), dresscode: clean(b.dresscode, 120), info: cleanMultiline(b.info, 400),
-        contact: clean(b.contact, 120), capacity: String(cap), access_code: clean(b.access_code, 40), registration_deadline: dl,
+        contact: clean(b.contact, 120), capacity: String(cap), max_tickets: String(mt), access_code: clean(b.access_code, 40), registration_deadline: dl,
         registration_open: b.registration_open ? '1' : '0', departments: depts.join('\n'),
       };
       await env.DB.batch(
