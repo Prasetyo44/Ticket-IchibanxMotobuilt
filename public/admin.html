@@ -31,8 +31,8 @@
     <div class="tabs" id="tabs">
       <button data-t="summary" class="on">Ringkasan</button>
       <button data-t="regs">Peserta</button>
-      <button data-t="employees">Karyawan</button>
-      <button data-t="requests">Tiket tambahan <span id="reqBadge" class="badge bad hidden" style="margin-left:4px"></span></button>
+      <button data-t="employees" class="kar">Karyawan</button>
+      <button data-t="requests" class="kar">Tiket tambahan <span id="reqBadge" class="badge bad hidden" style="margin-left:4px"></span></button>
       <button data-t="qr">Stok QR IMOS</button>
       <button data-t="settings">Pengaturan</button>
     </div>
@@ -43,9 +43,9 @@
     <!-- Ringkasan -->
     <section id="t-summary">
       <div class="stats" id="stats"></div>
-      <div class="card"><h2>Pendaftar per bagian</h2><p class="sub">Jumlah tiket per bagian.</p><div class="bars" id="bars"></div></div>
+      <div class="card kar"><h2>Pendaftar per bagian</h2><p class="sub">Jumlah tiket per bagian.</p><div class="bars" id="bars"></div></div>
       <div class="card"><h2>Link penting</h2>
-        <p class="sub" style="margin:0">Bagikan ke karyawan: <b id="linkForm"></b></p>
+        <p class="sub" style="margin:0"><span id="lblShare">Bagikan ke karyawan</span>: <b id="linkForm"></b></p>
       </div>
     </section>
 
@@ -58,7 +58,7 @@
         <a class="btn sm dark" href="/api/admin/export.csv" style="text-decoration:none">⬇ Export CSV</a>
       </div>
       <div class="tbl-wrap"><table class="t"><thead><tr>
-        <th>Waktu</th><th>Karyawan</th><th>Bagian</th><th>Tiket / Tamu</th><th>Kontak</th><th></th>
+        <th>Waktu</th><th id="thWho">Karyawan</th><th class="kar">Bagian</th><th>Tiket / Tamu</th><th>Kontak</th><th></th>
       </tr></thead><tbody id="regRows"></tbody></table></div>
     </section>
 
@@ -112,12 +112,12 @@
           <div><label class="f">Alamat tempat</label><input type="text" name="venue_address"></div>
           <div><label class="f">Dress code <span class="opt">(opsional)</span></label><input type="text" name="dresscode"></div>
           <div><label class="f">Kontak panitia</label><input type="text" name="contact" placeholder="IT: 0812-xxxx"></div>
-          <div class="full"><label class="f">Kode akses karyawan <span class="opt">(kosong = form terbuka untuk siapa saja yang tahu alamatnya)</span></label><input type="text" name="access_code" autocomplete="off" placeholder="mis. kode rahasia yang dibagikan HRD di grup karyawan"></div>
+          <div class="full kar"><label class="f">Kode akses karyawan <span class="opt">(kosong = form terbuka untuk siapa saja yang tahu alamatnya)</span></label><input type="text" name="access_code" autocomplete="off" placeholder="mis. kode rahasia yang dibagikan HRD di grup karyawan"></div>
           <div><label class="f">Kuota total tiket <span class="opt">(0 = tanpa batas)</span></label><input type="number" min="0" name="capacity"></div>
-          <div><label class="f">Maks tiket per orang <span class="opt">(khusus situs umum, 1–10)</span></label><input type="number" min="1" max="10" name="max_tickets"></div>
+          <div class="umumonly"><label class="f">Maks tiket per orang <span class="opt">(1–10)</span></label><input type="number" min="1" max="10" name="max_tickets"></div>
           <div><label class="f">Batas waktu pendaftaran <span class="opt">(WIB, kosongkan jika tanpa batas)</span></label><input type="datetime-local" name="registration_deadline"></div>
           <div class="full"><label class="f">Info di tiket</label><textarea name="info" rows="2"></textarea></div>
-          <div class="full"><label class="f">Daftar bagian <span class="opt">(satu per baris)</span></label><textarea name="departments" rows="7"></textarea></div>
+          <div class="full kar"><label class="f">Daftar bagian <span class="opt">(satu per baris)</span></label><textarea name="departments" rows="7"></textarea></div>
           <div class="full"><label class="check"><input type="checkbox" name="registration_open"> <span>Pendaftaran dibuka</span></label></div>
         </div>
         <div style="margin-top:16px"><button class="btn" id="saveSet">Simpan pengaturan</button></div>
@@ -164,6 +164,17 @@ $('#logout').onclick = async () => { await fetch('/api/admin/logout', { method: 
 
 /* ---- tab ---- */
 const loaders = { summary: loadSummary, regs: loadRegs, employees: loadEmployees, requests: loadRequests, qr: loadQr, settings: loadSettings };
+let UMUM = false;
+function applyMode(mode) {
+  UMUM = mode === 'umum';
+  document.body.classList.toggle('umum', UMUM);
+  if (!UMUM) return;
+  document.querySelector('.adm-top h1').textContent = '🎟️ Admin Tiket Umum – Ichiban x Motobuilt';
+  document.title = 'Admin Tiket Umum';
+  $('#lblShare').textContent = 'Bagikan ke masyarakat umum';
+  $('#thWho').textContent = 'Pendaftar';
+  $('#q').placeholder = 'Cari nama / HP / email…';
+}
 function openTab(t) {
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   Object.keys(loaders).forEach(k => $('#t-' + k).classList.toggle('hidden', k !== t));
@@ -175,12 +186,12 @@ $('#tabs').onclick = e => { if (e.target.dataset.t) openTab(e.target.dataset.t);
 async function loadSummary() {
   const s = await api('/api/admin/stats');
   const cards = [
-    [s.registrations, 'Karyawan terdaftar', s.employees ? `${s.employeesRegistered} dari ${s.employees} karyawan` : ''],
+    [s.registrations, UMUM ? 'Pendaftar' : 'Karyawan terdaftar', !UMUM && s.employees ? `${s.employeesRegistered} dari ${s.employees} karyawan` : ''],
     [s.tickets, 'Total tiket', `${s.withGuest} bawa tamu`],
     [s.pendingRequests, 'Permintaan tiket tambahan', s.pendingRequests ? 'menunggu keputusan (tab Tiket tambahan)' : 'tidak ada yang menunggu'],
     [s.remaining ?? '∞', 'Sisa tiket', `stok IMOS: ${s.qr.available} dari ${s.qr.total} file`],
   ];
-  $('#stats').replaceChildren(...cards.map(([n, l, sm]) => el('div', { className: 'stat' }, el('b', { textContent: n }), el('span', { textContent: l }), el('small', { textContent: sm }))));
+  $('#stats').replaceChildren(...cards.filter((c, i) => !(UMUM && i === 2)).map(([n, l, sm]) => el('div', { className: 'stat' }, el('b', { textContent: n }), el('span', { textContent: l }), el('small', { textContent: sm }))));
   const max = Math.max(1, ...s.byDept.map(x => x.tickets));
   $('#bars').replaceChildren(...(s.byDept.length ? s.byDept.map(x => el('div', { className: 'brow' },
     el('span', { textContent: x.dept }), el('div', { className: 'bar' }, el('i', { style: `width:${x.tickets / max * 100}%` })), el('b', { textContent: x.tickets + ' tiket' }))) : [el('p', { className: 'sub', textContent: 'Belum ada pendaftar.' })]));
@@ -214,8 +225,8 @@ async function loadRegs() {
     }
     return el('tr', { className: r.status === 'active' ? '' : 'cancelled' },
       el('td', { textContent: fmt(r.created_at) }),
-      el('td', {}, el('b', { textContent: r.name }), el('div', { className: 'small', textContent: r.nik })),
-      el('td', { textContent: r.dept }),
+      el('td', {}, el('b', { textContent: r.name }), el('div', { className: 'small', textContent: UMUM ? '' : r.nik })),
+      el('td', { className: 'kar', textContent: r.dept }),
       el('td', {}, el('b', { textContent: r.ticket_count + ' tiket' }), el('div', { className: 'small', textContent: r.guest_name ? 'Tamu: ' + r.guest_name : '—' })),
       el('td', {}, el('div', { textContent: r.phone }), el('div', { className: 'small', textContent: r.email })),
       el('td', {}, act));
@@ -313,6 +324,7 @@ $('#saveSet').onclick = () => run(async () => {
 
 /* ---- start ---- */
 async function start() {
+  try { const me = await (await fetch('/api/admin/me')).json(); applyMode(me.mode); } catch {}
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   openTab('summary');
 }
@@ -320,6 +332,7 @@ fetch('/api/admin/me').then(async r => {
   if (!r.ok) return showLogin();
   const d = await r.json();
   if (d.role !== 'admin') { showLogin(); return; }
+  applyMode(d.mode);
   start();
 });
 setInterval(() => { if (!$('#t-summary').classList.contains('hidden') && !document.hidden) run(loadSummary); }, 20000);

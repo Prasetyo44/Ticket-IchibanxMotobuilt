@@ -697,7 +697,7 @@ async function handle(req, env, ctx) {
   if (p.startsWith('/api/admin/')) {
     await requireAdmin(env, req);
 
-    if (m === 'GET' && p === '/api/admin/me') return json({ role: 'admin' });
+    if (m === 'GET' && p === '/api/admin/me') return json({ role: 'admin', mode: modeOf(env) });
     if (m === 'GET' && p === '/api/admin/stats') return json(await stats(env, url.origin));
     if (m === 'GET' && p === '/api/admin/registrations') return json(await adminList(env, url.searchParams.get('q') || '', url.origin));
 
@@ -735,13 +735,17 @@ async function handle(req, env, ctx) {
 
     if (m === 'GET' && p === '/api/admin/export.csv') {
       const rows = await adminList(env, '', url.origin);
-      const head = ['No', 'Waktu Daftar', 'ID Karyawan', 'Nama', 'Bagian', 'Alamat', 'Email', 'No HP', 'Jumlah Tiket', 'Nama Tamu', 'Catatan', 'Status'];
+      const um = modeOf(env) === 'umum';
+      const head = um
+        ? ['No', 'Waktu Daftar', 'Nama', 'Email', 'No HP', 'Jumlah Tiket', 'Nama Tamu', 'Catatan', 'Status']
+        : ['No', 'Waktu Daftar', 'ID Karyawan', 'Nama', 'Bagian', 'Alamat', 'Email', 'No HP', 'Jumlah Tiket', 'Nama Tamu', 'Catatan', 'Status'];
       const lines = [head.map(csvCell).join(',')];
       rows.slice().reverse().forEach((r, i) => {
-        lines.push([
-          i + 1, new Date(r.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }), r.nik, r.name, r.dept, r.address,
-          r.email, r.phone, r.ticket_count, r.guest_name, r.notes, r.status,
-        ].map(csvCell).join(','));
+        const t = new Date(r.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+        lines.push((um
+          ? [i + 1, t, r.name, r.email, r.phone, r.ticket_count, r.guest_name, r.notes, r.status]
+          : [i + 1, t, r.nik, r.name, r.dept, r.address, r.email, r.phone, r.ticket_count, r.guest_name, r.notes, r.status]
+        ).map(csvCell).join(','));
       });
       return csv(lines, 'peserta-imos.csv');
     }

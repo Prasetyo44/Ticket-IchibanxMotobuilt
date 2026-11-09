@@ -322,3 +322,6 @@ table.t tr.cancelled td:last-child, table.t tr.cancelled td:last-child * { opaci
 
 .copyright { text-align: center; font-size: 12.5px; padding: 6px 16px 28px; color: var(--muted); letter-spacing: .02em; }
 body.moto .copyright { color: rgba(255,255,255,.72); }
+
+body:not(.umum) .umumonly{display:none}
+body.umum .kar{display:none !important}
