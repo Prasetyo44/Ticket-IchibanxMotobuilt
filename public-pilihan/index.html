@@ -3,54 +3,148 @@
 <head>
 <meta charset="utf-8">
 <meta name="robots" content="noindex, nofollow">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0c0c10">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0e">
 <title>People's Choice – Ichiban x Motobuilt</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Kanit:ital,wght@1,700;1,800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Kanit:ital,wght@1,700;1,800;1,900&display=swap">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🏆%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="/style.css">
 <style>
-.cat { margin-bottom: 22px; }
-.cat h3 { font-family: var(--font-head); font-style: italic; text-transform: uppercase; font-size: 22px; margin: 0 0 4px; }
-.cat .done { color: var(--ok); font-weight: 800; font-size: 14px; }
-.bikes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 10px; }
-.bike { border: 2px solid var(--line); border-radius: 14px; background: #fff; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; text-align: left; font: inherit; padding: 0; color: var(--ink); }
-.bike:hover { border-color: var(--accent); }
-.bike .ph { aspect-ratio: 4 / 3; background: #e9e9ef center / cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 34px; color: #b7b7c4; }
-.bike .tx { padding: 9px 11px 11px; }
-.bike .no { display: inline-block; background: var(--ink); color: #fff; font-weight: 800; font-size: 12px; border-radius: 6px; padding: 2px 8px; }
-.bike b { display: block; margin-top: 5px; font-size: 14.5px; line-height: 1.25; }
-.bike small { color: var(--muted); font-size: 12.5px; }
-.bike.picked { border-color: var(--ok); box-shadow: 0 0 0 3px rgba(21,128,61,.25); }
-.bike.locked { cursor: default; opacity: .55; }
-.bike.locked.picked { opacity: 1; }
-.res { margin: 8px 0; }
-.res .row { display: grid; grid-template-columns: 1fr 64px; gap: 10px; align-items: center; margin: 7px 0; font-size: 14px; }
-.res .bar { height: 10px; background: #eceef8; border-radius: 99px; overflow: hidden; margin-top: 4px; }
-.res .bar i { display: block; height: 100%; background: linear-gradient(90deg, #9f0f18, #ff4b57); }
-.res .win { color: var(--accent-ink); font-weight: 800; }
-.banner { padding: 11px 14px; border-radius: 12px; font-size: 14px; margin: 10px 0; }
-.banner.bad { background: var(--bad-bg); color: var(--bad); }
-.banner.ok { background: var(--ok-bg); color: var(--ok); }
-.banner.warn { background: var(--warn-bg); color: var(--warn); }
-main { max-width: 760px; margin: -64px auto 0; padding: 0 14px 30px; position: relative; }
-.card { padding: 20px; }
+:root{--bg:#0a0a0e;--bg2:#121218;--card:#17171f;--line:rgba(255,255,255,.1);--tx:#f4f4f8;--mut:#9a9aae;--red:#e11d2a;--red2:#ff4b57;--gold:#ffd23f;--ok:#22c55e;--head:"Kanit",Impact,system-ui,sans-serif;--font:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--font);line-height:1.5}
+.hidden{display:none!important}
+button{font:inherit;color:inherit}
+.wrap{max-width:760px;margin:0 auto;padding:0 18px}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:30;background:rgba(10,10,14,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;height:54px}
+.brand{font-family:var(--head);font-style:italic;font-weight:800;letter-spacing:.04em;font-size:15px;text-transform:uppercase}
+.brand b{color:var(--red2)}
+.pill{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:rgba(255,255,255,.05)}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--mut)}
+.pill.live i{background:var(--ok);box-shadow:0 0 0 0 rgba(34,197,94,.7);animation:pulse 1.6s infinite}
+.pill.live{border-color:rgba(34,197,94,.45);color:#b7f5cb}
+@keyframes pulse{70%{box-shadow:0 0 0 9px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+
+/* hero */
+.hero{position:relative;overflow:hidden;padding:34px 0 56px;isolation:isolate}
+.hero::before{content:"";position:absolute;inset:-30px;background:url(/img/poster-top.jpg) center/cover;filter:blur(26px) saturate(1.3);opacity:.5;z-index:-2}
+.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(700px 360px at 80% 0,rgba(225,29,42,.55),transparent 65%),linear-gradient(to bottom,rgba(10,10,14,.35),var(--bg) 96%);z-index:-1}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+h1.title{font-family:var(--head);font-style:italic;font-weight:900;text-transform:uppercase;line-height:.92;font-size:clamp(46px,13.5vw,92px);margin:10px 0 14px;letter-spacing:-.01em}
+h1.title span{display:block;color:transparent;-webkit-text-stroke:2px var(--red2)}
+.lead{color:#d9d9e6;font-size:16.5px;max-width:520px;margin:0 0 20px}
+.cta{display:inline-flex;align-items:center;gap:10px;background:var(--red);color:#fff;font-weight:800;font-size:17px;padding:15px 26px;border:0;border-radius:14px;cursor:pointer;box-shadow:0 14px 34px -12px rgba(225,29,42,.95);text-decoration:none;transition:transform .08s,filter .15s}
+.cta:hover{filter:brightness(1.08)}.cta:active{transform:translateY(1px)}.cta:disabled{opacity:.55;cursor:wait}
+.cta.ghost{background:transparent;border:1.5px solid var(--line);box-shadow:none}
+.poster{display:block;height:auto;width:min(78%,330px);margin:30px auto 0;border-radius:18px;border:1.5px solid rgba(255,255,255,.2);box-shadow:0 40px 80px -30px rgba(225,29,42,.85);transform:rotate(-3deg)}
+@media(min-width:720px){.hero .wrap{display:grid;grid-template-columns:1.2fr .8fr;gap:28px;align-items:center}.poster{margin:0;width:100%}}
+
+/* langkah */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 28px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 12px;text-align:center}
+.step .n{display:inline-flex;width:30px;height:30px;border-radius:50%;align-items:center;justify-content:center;background:var(--red);font-weight:800;font-size:14px;margin-bottom:6px}
+.step b{display:block;font-size:13.5px;line-height:1.25}.step small{color:var(--mut);font-size:12px}
+
+/* panel / form */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px 20px;margin-bottom:18px}
+.panel h2{font-family:var(--head);font-style:italic;text-transform:uppercase;font-size:26px;margin:0 0 4px}
+.panel .sub{color:var(--mut);font-size:14.5px;margin:0 0 18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid .full{grid-column:1/-1}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+label.f{display:block;font-size:12.5px;font-weight:700;letter-spacing:.03em;margin-bottom:6px;color:#d6d6e4}
+label.f .opt{font-weight:500;color:var(--mut)}
+input[type=text],input[type=email],input[type=tel]{width:100%;font:inherit;font-size:16px;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:#0d0d13;color:var(--tx);outline:none;transition:border-color .15s,box-shadow .15s}
+input::placeholder{color:#5d5d70}
+input:focus{border-color:var(--red2);box-shadow:0 0 0 4px rgba(225,29,42,.2)}
+.field.err input{border-color:#ff6b73;background:#1a0e10}.errmsg{color:#ff8f96;font-size:13px;margin-top:5px}.hint{color:var(--mut);font-size:12.5px;margin-top:5px}
+.check{display:flex;gap:11px;align-items:flex-start;font-size:13.8px;color:#cfcfdd;cursor:pointer}
+.check input{margin-top:3px;width:19px;height:19px;accent-color:var(--red);flex:none}
+.banner{padding:12px 14px;border-radius:12px;font-size:14px;margin:12px 0}
+.banner.bad{background:rgba(225,29,42,.16);color:#ffb3b8;border:1px solid rgba(225,29,42,.4)}
+.banner.ok{background:rgba(34,197,94,.14);color:#b7f5cb;border:1px solid rgba(34,197,94,.35)}
+
+/* progress + kategori */
+.prog{position:sticky;top:54px;z-index:20;background:rgba(10,10,14,.9);backdrop-filter:blur(10px);padding:10px 0 12px;border-bottom:1px solid var(--line)}
+.prog .bar{height:6px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-bottom:9px}
+.prog .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--red2));border-radius:99px;transition:width .4s}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:99px;padding:7px 14px;font-size:13px;font-weight:700;color:#d6d6e4;text-decoration:none;white-space:nowrap}
+.chip.done{border-color:rgba(34,197,94,.5);color:#b7f5cb}.chip.done::before{content:"✓ "}
+.hello{margin:22px 0 4px;font-size:15px;color:var(--mut)}.hello b{color:var(--tx)}
+.cat{padding-top:26px;scroll-margin-top:120px}
+.cat h3{font-family:var(--head);font-style:italic;text-transform:uppercase;font-size:30px;line-height:1;margin:0}
+.cat .st{font-size:13.5px;color:var(--mut);margin:6px 0 14px}.cat .st.ok{color:#b7f5cb;font-weight:700}
+.bikes{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
+.bike{position:relative;aspect-ratio:4/5;border:0;border-radius:18px;overflow:hidden;cursor:pointer;background:#1b1b25 center/cover no-repeat;padding:0;text-align:left;transition:transform .15s,box-shadow .2s;box-shadow:0 10px 30px -14px #000}
+.bike:hover{transform:translateY(-3px)}.bike:active{transform:scale(.98)}
+.bike::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(10,10,14,.96) 0%,rgba(10,10,14,.55) 38%,transparent 62%)}
+.bike .no{position:absolute;left:10px;top:8px;z-index:2;font-family:var(--head);font-style:italic;font-weight:900;font-size:34px;line-height:1;text-shadow:0 2px 12px #000}
+.bike .no small{font-size:15px;color:var(--gold)}
+.bike .tx{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:12px}
+.bike .tx b{display:block;font-size:15.5px;line-height:1.2}.bike .tx span{display:block;color:#c9c9d8;font-size:12.5px;margin-top:2px}
+.bike .noimg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:54px;opacity:.35}
+.bike.locked{cursor:default;filter:grayscale(.9) brightness(.5)}.bike.locked:hover{transform:none}
+.bike.picked{filter:none;box-shadow:0 0 0 3px var(--ok),0 18px 40px -14px rgba(34,197,94,.6)}
+.bike .badge{position:absolute;right:8px;top:8px;z-index:3;background:var(--ok);color:#04210f;font-weight:800;font-size:11.5px;letter-spacing:.06em;padding:4px 9px;border-radius:99px;text-transform:uppercase}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:520px;background:var(--card);border-radius:24px 24px 0 0;border:1px solid var(--line);padding:20px 20px calc(20px + env(safe-area-inset-bottom));animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:0}}
+.sheet .ph{height:170px;border-radius:16px;background:#1b1b25 center/cover no-repeat;margin-bottom:14px;display:flex;align-items:flex-end;padding:12px;font-family:var(--head);font-style:italic;font-weight:900;font-size:40px}
+.sheet h4{margin:0;font-size:20px}.sheet p{color:var(--mut);margin:6px 0 16px;font-size:14px}
+.sheet .row{display:grid;grid-template-columns:1fr 1.4fr;gap:10px}
+@media(min-width:600px){.modal{align-items:center}.sheet{border-radius:24px}}
+
+/* selesai */
+.fin{text-align:center;padding:30px 20px;border-radius:22px;margin:26px 0 8px;background:radial-gradient(500px 220px at 50% 0,rgba(34,197,94,.25),transparent 70%),var(--card);border:1px solid rgba(34,197,94,.35)}
+.fin .big{font-size:54px;line-height:1}.fin h2{font-family:var(--head);font-style:italic;text-transform:uppercase;font-size:28px;margin:8px 0 4px}.fin p{color:#c9c9d8;margin:0}
+
+/* hasil */
+.rc{margin-top:26px}.rc h3{font-family:var(--head);font-style:italic;text-transform:uppercase;font-size:26px;margin:0 0 12px}
+.win{position:relative;border-radius:20px;overflow:hidden;aspect-ratio:16/10;background:#1b1b25 center/cover;margin-bottom:10px;box-shadow:0 0 0 2px var(--gold),0 20px 50px -20px rgba(255,210,63,.5)}
+.win::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(10,10,14,.95),rgba(10,10,14,.1) 65%)}
+.win .in{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:14px 16px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.win .crown{font-size:13px;font-weight:800;letter-spacing:.16em;color:var(--gold);text-transform:uppercase}
+.win b{display:block;font-family:var(--head);font-style:italic;font-size:28px;line-height:1.05}
+.win .pc{font-family:var(--head);font-style:italic;font-weight:900;font-size:44px;color:var(--gold);line-height:1}
+.rrow{display:grid;grid-template-columns:1fr 54px;gap:10px;align-items:center;margin:8px 0;font-size:14px}
+.rrow .bar{height:8px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden;margin-top:5px}.rrow .bar i{display:block;height:100%;background:linear-gradient(90deg,#9f0f18,var(--red2))}
+
+body.voting .poster{display:none}body.voting .hero{padding:22px 0 18px}body.voting h1.title{font-size:clamp(34px,10vw,56px);margin-bottom:6px}body.voting .lead{display:none}
+footer{text-align:center;color:var(--mut);font-size:12.5px;padding:34px 16px 40px}
 </style>
 </head>
-<body class="moto">
-<header class="hero">
-  <div class="wrap">
-    <div class="eyebrow">People's Choice • Ichiban Paint x Motobuilt</div>
-    <h1 id="title" class="moto-title">People's Choice</h1>
-    <img class="poster-img" src="/img/poster.jpg" width="1080" height="1350" alt="Poster Ichiban Paint Motobuilt Modification Contest 2026">
-  </div>
-</header>
-<main>
-  <section class="card" id="stateCard"><p class="sub" style="margin:0">Memuat…</p></section>
+<body>
+<div class="top"><div class="wrap">
+  <div class="brand">Ichiban <b>×</b> Motobuilt</div>
+  <span class="pill" id="statusPill"><i></i><span id="statusTx">Memuat</span></span>
+</div></div>
 
-  <section class="card hidden" id="joinCard" style="margin-top:16px">
-    <h2>Isi data singkat untuk ikut memilih</h2>
+<header class="hero"><div class="wrap">
+  <div>
+    <div class="eyebrow">Moto Built Fest 2026 • ICE BSD City</div>
+    <h1 class="title" id="title">People's<span>Choice</span></h1>
+    <p class="lead" id="lead">Motor mana yang paling layak menang menurut kamu? Pilih favoritmu.</p>
+    <a class="cta" id="heroCta" href="#app">Mulai Voting ↓</a>
+  </div>
+  <img class="poster" src="/img/poster.jpg" width="1080" height="1350" alt="Poster Ichiban Paint Motobuilt Modification Contest 2026">
+</div></header>
+
+<main class="wrap" id="app" style="scroll-margin-top:60px">
+  <div class="steps">
+    <div class="step"><span class="n">1</span><b>Isi data singkat</b><small>30 detik saja</small></div>
+    <div class="step"><span class="n">2</span><b>Pilih favoritmu</b><small>1 suara tiap kategori</small></div>
+    <div class="step"><span class="n">3</span><b>Suara terkunci</b><small>Hasil diumumkan panitia</small></div>
+  </div>
+
+  <section class="panel" id="stateCard"><p class="sub" style="margin:0">Memuat…</p></section>
+
+  <section class="panel hidden" id="joinCard">
+    <h2>Mulai memilih</h2>
     <p class="sub" id="intro"></p>
     <form id="form" novalidate autocomplete="on">
       <div class="grid">
@@ -63,17 +157,19 @@ main { max-width: 760px; margin: -64px auto 0; padding: 0 14px 30px; position: r
         <div class="field" data-f="motor"><label class="f" for="motor">Motor yang kamu pakai <span class="opt">(opsional)</span></label><input type="text" id="motor" maxlength="80" placeholder="mis. Honda CB150R, Vespa Sprint"><div class="errmsg"></div></div>
         <div class="full" id="tsBox"></div>
         <div class="field full" data-f="consent"><label class="check"><input type="checkbox" id="consent"> <span>Saya setuju data saya (nama, nomor HP, dan isian di atas) dipakai penyelenggara <b>untuk menjalankan voting ini</b> dan menghitung suara yang sah.</span></label><div class="errmsg"></div></div>
-        <div class="full"><label class="check"><input type="checkbox" id="consentMkt"> <span>Saya <b>juga bersedia</b> dihubungi Ichiban Paint untuk info produk, promo, dan acara berikutnya. <i>(Opsional, tidak memengaruhi hak memilih.)</i></span></label></div>
+        <div class="full"><label class="check"><input type="checkbox" id="consentMkt"> <span>Saya <b>juga bersedia</b> dihubungi Ichiban Paint untuk info produk, promo, dan acara berikutnya. <i style="color:var(--mut)">(Opsional, tidak memengaruhi hak memilih.)</i></span></label></div>
       </div>
       <div id="formErr" class="banner bad hidden"></div>
-      <button class="btn block" id="joinBtn" type="submit" style="margin-top:14px">Lanjut ke voting</button>
+      <button class="cta" id="joinBtn" type="submit" style="width:100%;justify-content:center;margin-top:16px">Lanjut pilih motor →</button>
     </form>
   </section>
 
-  <section id="voteWrap" class="hidden" style="margin-top:16px"></section>
-  <section class="card hidden" id="resCard" style="margin-top:16px"></section>
+  <section id="voteWrap" class="hidden"></section>
+  <section id="resCard" class="hidden"></section>
 </main>
-<div class="copyright">&copy; 2026 by Prasetyo</div>
+<footer>&copy; 2026 by Prasetyo</footer>
+
+<div class="modal hidden" id="modal"><div class="sheet" id="sheet"></div></div>
 
 <script>
 const $ = (s, r = document) => r.querySelector(s);
@@ -86,108 +182,135 @@ async function api(path, opt) {
   if (!r.ok) { const e = new Error(d.error || 'Terjadi kesalahan.'); e.field = d.field; throw e; }
   return d;
 }
-
 async function load() {
   cfg = await api('/api/config');
   const m = await api('/api/me');
   me = m.voter; votes = m.votes || {};
-  $('#title').textContent = cfg.title;
   document.title = cfg.title;
+  if (cfg.intro) $('#lead').textContent = cfg.intro;
   render();
 }
+const cats = () => cfg.categories.filter(c => c.bikes.length);
+const photo = (b) => b.has_photo ? `url(/api/photo/${b.id})` : '';
 
-function banner(cls, html) { return el('div', { className: 'banner ' + cls, innerHTML: html }); }
+function setStatus() {
+  const pill = $('#statusPill');
+  const map = { open: ['Voting dibuka', 'live'], soon: ['Segera dibuka', ''], closed: ['Voting ditutup', ''] };
+  const [t, c] = map[cfg.status] || ['', ''];
+  pill.className = 'pill ' + c; $('#statusTx').textContent = t;
+}
 
 function render() {
+  setStatus(); document.body.classList.remove('voting');
   const st = $('#stateCard'); st.replaceChildren(); st.classList.remove('hidden');
-  $('#joinCard').classList.add('hidden'); $('#voteWrap').classList.add('hidden'); $('#resCard').classList.add('hidden');
-  if (!cfg.categories.length || cfg.categories.every(c => !c.bikes.length)) {
-    st.append(el('h2', { textContent: 'Segera hadir' }), el('p', { className: 'sub', textContent: 'Daftar motor belum tersedia. Silakan kembali beberapa saat lagi.' }));
-    return;
+  for (const id of ['joinCard', 'voteWrap', 'resCard']) $('#' + id).classList.add('hidden');
+  const cta = $('#heroCta'); cta.classList.remove('hidden');
+  document.querySelector('.steps').classList.remove('hidden');
+  if (!cats().length) {
+    st.append(el('h2', { textContent: 'Segera hadir' }), el('p', { className: 'sub', style: 'margin:0', textContent: 'Daftar motor peserta belum tersedia. Silakan kembali beberapa saat lagi.' }));
+    cta.classList.add('hidden'); return;
   }
   if (cfg.status === 'soon') {
-    st.append(el('h2', { textContent: 'Voting belum dibuka' }), el('p', { className: 'sub', style: 'margin:0', textContent: 'Tunggu pengumuman dari panitia di lokasi acara.' }));
-    return;
+    st.append(el('h2', { textContent: 'Voting belum dibuka' }), el('p', { className: 'sub', style: 'margin:0', textContent: 'Tunggu pengumuman dari panitia di lokasi acara. Halaman ini akan aktif otomatis saat voting dimulai.' }));
+    cta.classList.add('hidden'); return;
   }
   if (cfg.status === 'closed') {
-    st.append(el('h2', { textContent: 'Voting sudah ditutup' }), el('p', { className: 'sub', style: 'margin:0', textContent: me ? `Terima kasih ${me.name}, suaramu sudah tercatat.` : 'Terima kasih sudah berpartisipasi.' }));
+    cta.classList.add('hidden'); document.querySelector('.steps').classList.add('hidden');
+    st.append(el('h2', { textContent: 'Voting ditutup' }), el('p', { className: 'sub', style: 'margin:0', textContent: (me ? `Terima kasih ${me.name}, suaramu sudah tercatat. ` : 'Terima kasih sudah berpartisipasi. ') + (cfg.results ? 'Ini hasil pilihan pengunjung.' : 'Pemenang diumumkan oleh panitia.') }));
     if (cfg.results) renderResults();
-    else st.append(el('p', { className: 'sub', style: 'margin:10px 0 0', textContent: 'Pemenang akan diumumkan oleh panitia.' }));
     return;
   }
-  // open
   if (!me) {
     st.classList.add('hidden');
     $('#joinCard').classList.remove('hidden');
-    $('#intro').textContent = cfg.intro;
+    $('#intro').textContent = 'Isi data singkat di bawah, lalu pilih motor favoritmu di setiap kategori. Satu suara per kategori dan pilihan tidak bisa diubah.';
     $('#codeBox').classList.toggle('hidden', !cfg.needs_code);
-    initTurnstile();
-    return;
+    cta.textContent = 'Mulai Voting ↓'; cta.href = '#joinCard';
+    initTurnstile(); return;
   }
-  st.classList.remove('hidden');
-  const total = cfg.categories.filter(c => c.bikes.length).length;
-  const done = Object.keys(votes).length;
-  st.append(el('h2', { textContent: `Halo, ${me.name}` }),
-    el('p', { className: 'sub', style: 'margin:0', textContent: done >= total ? 'Semua suara sudah masuk. Terima kasih!' : cfg.intro }),
-    banner(done >= total ? 'ok' : 'warn', `<b>${done} dari ${total}</b> kategori sudah dipilih.`));
+  st.classList.add('hidden'); document.body.classList.add('voting');
+  cta.classList.add('hidden'); document.querySelector('.steps').classList.add('hidden');
   renderVote();
 }
 
 function renderVote() {
   const w = $('#voteWrap'); w.classList.remove('hidden'); w.replaceChildren();
-  for (const c of cfg.categories) {
-    if (!c.bikes.length) continue;
+  const cs = cats(); const done = cs.filter(c => votes[c.id]).length;
+  w.append(el('div', { className: 'prog' },
+    el('div', { className: 'bar' }, el('i', { style: `width:${done / cs.length * 100}%` })),
+    el('div', { className: 'chips' }, ...cs.map(c => el('a', { className: 'chip' + (votes[c.id] ? ' done' : ''), href: '#cat' + c.id, textContent: c.name })))));
+  w.append(el('p', { className: 'hello', innerHTML: `Halo, <b></b> — <b>${done}/${cs.length}</b> kategori sudah dipilih.` }));
+  w.querySelector('.hello b').textContent = me.name;
+  for (const c of cs) {
     const picked = votes[c.id];
-    const box = el('div', { className: 'card cat' }, el('h3', { textContent: c.name }));
-    box.append(picked ? el('div', { className: 'done', textContent: '✓ Suaramu sudah masuk' }) : el('p', { className: 'sub', style: 'margin:0', textContent: 'Ketuk motor pilihanmu.' }));
+    const sec = el('div', { className: 'cat', id: 'cat' + c.id }, el('h3', { textContent: c.name }),
+      el('div', { className: 'st' + (picked ? ' ok' : ''), textContent: picked ? '✓ Suaramu sudah masuk' : 'Ketuk motor yang menurutmu paling layak menang' }));
     const grid = el('div', { className: 'bikes' });
     for (const b of c.bikes) {
-      const btn = el('button', { type: 'button', className: 'bike' + (picked === b.id ? ' picked' : '') + (picked ? ' locked' : '') });
-      const ph = el('div', { className: 'ph', textContent: b.has_photo ? '' : '🏍️' });
-      if (b.has_photo) ph.style.backgroundImage = `url(/api/photo/${b.id})`;
-      btn.append(ph, el('div', { className: 'tx' }, el('span', { className: 'no', textContent: '#' + b.number }), el('b', { textContent: b.name }), el('small', { textContent: [b.owner, b.info].filter(Boolean).join(' • ') })));
-      if (!picked) btn.onclick = () => castVote(c, b);
-      grid.append(btn);
+      const mine = picked === b.id;
+      const card = el('button', { type: 'button', className: 'bike' + (picked ? ' locked' : '') + (mine ? ' picked' : '') });
+      if (b.has_photo) card.style.backgroundImage = photo(b); else card.append(el('div', { className: 'noimg', textContent: '🏍️' }));
+      card.append(el('div', { className: 'no', innerHTML: '<small>#</small>' + String(b.number).replace(/</g, '&lt;') }));
+      if (mine) card.append(el('span', { className: 'badge', textContent: 'Pilihanmu' }));
+      card.append(el('div', { className: 'tx' }, el('b', { textContent: b.name }), el('span', { textContent: [b.owner, b.info].filter(Boolean).join(' • ') })));
+      if (!picked) card.onclick = () => confirmVote(c, b);
+      grid.append(card);
     }
-    box.append(grid); w.append(box);
+    sec.append(grid); w.append(sec);
   }
+  if (done >= cs.length) w.append(el('div', { className: 'fin' }, el('div', { className: 'big', textContent: '🏁' }), el('h2', { textContent: 'Semua suara sudah masuk!' }), el('p', { textContent: 'Terima kasih sudah ikut menentukan. Pemenang diumumkan oleh panitia.' })));
 }
 
-async function castVote(c, b) {
-  if (!confirm(`Pilih #${b.number} ${b.name} untuk kategori ${c.name}?\nPilihan tidak bisa diubah.`)) return;
-  try { await api('/api/vote', { category_id: c.id, bike_id: b.id }); votes[c.id] = b.id; render(); }
-  catch (e) { alert(e.message); if (/sudah memilih/.test(e.message)) { await load(); } }
+function confirmVote(c, b) {
+  const sheet = $('#sheet'); sheet.replaceChildren();
+  const ph = el('div', { className: 'ph', textContent: '#' + b.number }); if (b.has_photo) ph.style.backgroundImage = photo(b);
+  const yes = el('button', { className: 'cta', type: 'button', textContent: 'Ya, pilih ini', style: 'justify-content:center' });
+  const no = el('button', { className: 'cta ghost', type: 'button', textContent: 'Batal', style: 'justify-content:center' });
+  sheet.append(ph, el('h4', { textContent: b.name }), el('p', { textContent: `Kategori ${c.name}. Pilihan tidak bisa diubah setelah dikirim.` }), el('div', { className: 'row' }, no, yes));
+  $('#modal').classList.remove('hidden');
+  no.onclick = () => $('#modal').classList.add('hidden');
+  yes.onclick = async () => {
+    yes.disabled = true;
+    try { await api('/api/vote', { category_id: c.id, bike_id: b.id }); votes[c.id] = b.id; $('#modal').classList.add('hidden'); renderVote(); document.getElementById('cat' + c.id)?.scrollIntoView({ block: 'start' }); }
+    catch (e) { $('#modal').classList.add('hidden'); alert(e.message); if (/sudah memilih|ditutup/.test(e.message)) await load(); }
+  };
 }
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') $('#modal').classList.add('hidden'); });
 
 function renderResults() {
-  const rc = $('#resCard'); rc.classList.remove('hidden'); rc.replaceChildren(el('h2', { textContent: 'Hasil People\'s Choice' }));
+  const rc = $('#resCard'); rc.classList.remove('hidden'); rc.replaceChildren();
   for (const c of cfg.results) {
     if (!c.bikes.length) continue;
-    rc.append(el('h3', { textContent: c.name, style: 'margin:16px 0 4px;font-size:17px' }));
-    const res = el('div', { className: 'res' });
-    c.bikes.forEach((b, i) => res.append(el('div', {}, el('div', { className: 'row' },
-      el('div', { className: i === 0 && b.votes ? 'win' : '' }, (i === 0 && b.votes ? '🏆 ' : '') + `#${b.number} ${b.name}`, el('div', { className: 'bar' }, el('i', { style: `width:${b.pct}%` }))),
-      el('b', { textContent: `${b.pct}%`, style: 'text-align:right' })))));
-    rc.append(res);
+    const box = el('div', { className: 'rc' }, el('h3', { textContent: c.name }));
+    c.bikes.forEach((b, i) => {
+      if (i === 0 && b.votes) {
+        const w = el('div', { className: 'win' }); if (b.has_photo) w.style.backgroundImage = photo(b);
+        w.append(el('div', { className: 'in' }, el('div', {}, el('div', { className: 'crown', textContent: '🏆 Pilihan pengunjung' }), el('b', { textContent: `#${b.number} ${b.name}` })), el('div', { className: 'pc', textContent: Math.round(b.pct) + '%' })));
+        box.append(w);
+      } else {
+        box.append(el('div', { className: 'rrow' }, el('div', {}, `#${b.number} ${b.name}`, el('div', { className: 'bar' }, el('i', { style: `width:${b.pct}%` }))), el('b', { textContent: b.pct + '%', style: 'text-align:right' })));
+      }
+    });
+    rc.append(box);
   }
 }
 
-/* ---- form ---- */
+/* form */
 function initTurnstile() {
   if (!cfg.turnstile_site_key || $('#tsBox').dataset.on) return;
   $('#tsBox').dataset.on = '1';
-  $('#tsBox').append(el('div', { className: 'cf-turnstile', 'data-sitekey': cfg.turnstile_site_key }));
+  $('#tsBox').append(el('div', { className: 'cf-turnstile', 'data-sitekey': cfg.turnstile_site_key, 'data-theme': 'dark' }));
   document.head.append(Object.assign(document.createElement('script'), { src: 'https://challenges.cloudflare.com/turnstile/v0/api.js', async: true, defer: true }));
 }
+function clearErr() { document.querySelectorAll('.field.err').forEach(x => { x.classList.remove('err'); x.querySelector('.errmsg').textContent = ''; }); $('#formErr').classList.add('hidden'); }
 function fieldErr(f, msg) {
-  document.querySelectorAll('.field.err').forEach(x => { x.classList.remove('err'); x.querySelector('.errmsg').textContent = ''; });
+  clearErr();
   const d = document.querySelector(`[data-f="${f}"]`);
-  if (d) { d.classList.add('err'); d.querySelector('.errmsg').textContent = msg; d.scrollIntoView({ block: 'center', behavior: 'smooth' }); } else { $('#formErr').textContent = msg; $('#formErr').classList.remove('hidden'); }
+  if (d) { d.classList.add('err'); d.querySelector('.errmsg').textContent = msg; d.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  else { $('#formErr').textContent = msg; $('#formErr').classList.remove('hidden'); }
 }
 $('#form').addEventListener('submit', async e => {
-  e.preventDefault();
-  $('#formErr').classList.add('hidden');
-  document.querySelectorAll('.field.err').forEach(x => { x.classList.remove('err'); x.querySelector('.errmsg').textContent = ''; });
+  e.preventDefault(); clearErr();
   const body = {
     code: $('#code').value, name: $('#name').value, phone: $('#phone').value, email: $('#email').value, city: $('#city').value,
     community: $('#community').value, motor: $('#motor').value, consent: $('#consent').checked, consent_mkt: $('#consentMkt').checked,
@@ -198,11 +321,11 @@ $('#form').addEventListener('submit', async e => {
   if (!body.phone.trim()) return fieldErr('phone', 'Nomor HP wajib diisi.');
   if (!body.consent) return fieldErr('consent', 'Centang persetujuan untuk ikut memilih.');
   const btn = $('#joinBtn'); btn.disabled = true;
-  try { await api('/api/join', body); await load(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  try { await api('/api/join', body); await load(); window.scrollTo({ top: $('#app').offsetTop - 60, behavior: 'smooth' }); }
   catch (err) { fieldErr(err.field, err.message); window.turnstile?.reset?.(); }
   finally { btn.disabled = false; }
 });
-load().catch(e => { $('#stateCard').replaceChildren(banner('bad', e.message)); });
+load().catch(e => { $('#stateCard').replaceChildren(el('div', { className: 'banner bad', textContent: e.message })); });
 </script>
 </body>
 </html>
