@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<title>Admin People's Choice</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Kanit:ital,wght@1,700;1,800&display=swap">
+<link rel="stylesheet" href="/style.css">
+<style>
+.thumb { width: 54px; height: 40px; object-fit: cover; border-radius: 6px; background: #eee; }
+#results .card, .adm .card { margin-bottom: 16px; }
+.sub2 { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="login hidden" id="login">
+  <div class="card">
+    <h2>Admin People's Choice</h2>
+    <p class="sub">Masukkan password admin.</p>
+    <div class="field" style="margin-bottom:12px"><input type="password" id="pw" placeholder="Password" autocomplete="current-password"><div class="errmsg" id="loginErr"></div></div>
+    <button class="btn block" id="loginBtn">Masuk</button>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <div class="adm-top">
+    <h1>🏆 Admin People's Choice</h1>
+    <div class="tabs" id="tabs">
+      <button data-t="summary" class="on">Hasil</button>
+      <button data-t="bikes">Motor &amp; Kategori</button>
+      <button data-t="voters">Pemilih</button>
+      <button data-t="settings">Pengaturan</button>
+    </div>
+    <button class="btn sm ghost" id="logout">Keluar</button>
+  </div>
+  <div class="adm">
+    <section id="t-summary">
+      <div class="stats" id="stats"></div>
+      <div id="results"></div>
+      <div class="card"><h2>Asal komunitas</h2><p class="sub">Pemilih yang sah, berdasarkan isian komunitas.</p><div class="bars" id="byCommunity"></div></div>
+      <div class="card"><h2>Motor yang dipakai pengunjung</h2><p class="sub">Berdasarkan isian "motor yang kamu pakai".</p><div class="bars" id="byMotor"></div></div>
+      <div class="card hidden" id="susp"><h2>⚠️ Perlu dicek</h2><p class="sub">Banyak pendaftaran dari satu jaringan yang sama (bisa wajar bila wifi venue). Cek tab Pemilih; bila mencurigakan, batalkan suaranya.</p><div id="suspList"></div></div>
+    </section>
+
+    <section id="t-bikes" class="hidden">
+      <div class="card">
+        <h2>Kategori</h2>
+        <div class="toolbar"><input type="text" id="catName" placeholder="Nama kategori, mis. Custom Street" style="max-width:320px"><button class="btn sm" id="catAdd">Tambah kategori</button></div>
+        <div id="catList"></div>
+      </div>
+      <div class="card">
+        <h2 id="bikeFormTitle">Tambah motor</h2>
+        <div class="formgrid">
+          <div><label class="f">Kategori</label><select id="bCat"></select></div>
+          <div><label class="f">Nomor peserta</label><input type="text" id="bNum" maxlength="10"></div>
+          <div><label class="f">Nama motor / builder</label><input type="text" id="bName"></div>
+          <div><label class="f">Pemilik <span class="opt">(opsional)</span></label><input type="text" id="bOwner"></div>
+          <div class="full"><label class="f">Keterangan singkat <span class="opt">(opsional)</span></label><input type="text" id="bInfo" maxlength="200"></div>
+          <div class="full"><label class="f">Foto <span class="opt">(otomatis diperkecil)</span></label><input type="file" id="bPhoto" accept="image/*"><img id="bPrev" class="thumb hidden" style="margin-top:8px;width:120px;height:90px"></div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:8px"><button class="btn" id="bSave">Simpan motor</button><button class="btn ghost hidden" id="bCancel">Batal edit</button></div>
+      </div>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th>Foto</th><th>No</th><th>Motor</th><th>Kategori</th><th>Status</th><th></th></tr></thead><tbody id="bikeRows"></tbody></table></div>
+    </section>
+
+    <section id="t-voters" class="hidden">
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="Cari nama / HP / komunitas / motor…">
+        <span id="vCount" style="color:var(--muted);font-size:14px"></span><span style="flex:1"></span>
+        <a class="btn sm dark" href="/api/admin/voters.csv" style="text-decoration:none">⬇ Export CSV</a>
+      </div>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th>Waktu</th><th>Pemilih</th><th>Kontak</th><th>Komunitas</th><th>Motor</th><th>Suara</th><th>Promo</th><th></th></tr></thead><tbody id="vRows"></tbody></table></div>
+    </section>
+
+    <section id="t-settings" class="hidden">
+      <div class="card">
+        <h2>Pengaturan</h2>
+        <div class="formgrid" id="setForm">
+          <div class="full"><label class="f">Judul</label><input type="text" name="event_title"></div>
+          <div class="full"><label class="f">Teks pengantar</label><textarea name="intro" rows="2"></textarea></div>
+          <div><label class="f">Status voting</label><select name="status"><option value="soon">Belum dibuka</option><option value="open">Dibuka</option><option value="closed">Ditutup</option></select></div>
+          <div><label class="f">Kode lokasi <span class="opt">(kosong = tanpa kode)</span></label><input type="text" name="venue_code" autocomplete="off" placeholder="Umumkan di lokasi acara; ganti kapan saja"></div>
+          <div><label class="f">Maks pendaftaran per jam per jaringan</label><input type="number" min="3" max="500" name="ip_limit"></div>
+          <div class="full"><label class="check"><input type="checkbox" name="show_results"> <span>Tampilkan hasil ke publik setelah voting ditutup</span></label></div>
+        </div>
+        <div style="margin-top:16px"><button class="btn" id="saveSet">Simpan pengaturan</button></div>
+        <p class="sub" style="margin:14px 0 0">Tips: isi kode lokasi, lalu umumkan hanya di lokasi acara (layar atau panitia). Itu mencegah orang memilih dari jauh.</p>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="copyright">&copy; 2026 by Prasetyo</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const el = (t, a = {}, ...k) => { const e = Object.assign(document.createElement(t), a); e.append(...k); return e; };
+function toast(m, bad) { const t = el('div', { className: 'toast' + (bad ? ' bad' : ''), textContent: m }); document.body.append(t); setTimeout(() => t.remove(), 2800); }
+async function api(path, method = 'GET', body) {
+  const r = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401 && path !== '/api/admin/login') { showLogin(); throw new Error(d.error); }
+  if (!r.ok) throw new Error(d.error || 'Gagal.');
+  return d;
+}
+const run = async (fn) => { try { await fn(); } catch (e) { toast(e.message, true); } };
+const fmt = (iso) => new Date(iso).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'short', timeStyle: 'short' });
+
+function showLogin() { $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); }
+$('#loginBtn').onclick = async () => { try { await api('/api/admin/login', 'POST', { password: $('#pw').value }); start(); } catch (e) { $('#loginErr').textContent = e.message; } };
+$('#pw').addEventListener('keydown', e => { if (e.key === 'Enter') $('#loginBtn').click(); });
+$('#logout').onclick = async () => { await fetch('/api/admin/logout', { method: 'POST' }); location.reload(); };
+
+const loaders = { summary: loadSummary, bikes: loadBikes, voters: loadVoters, settings: loadSettings };
+function openTab(t) {
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  Object.keys(loaders).forEach(k => $('#t-' + k).classList.toggle('hidden', k !== t));
+  run(loaders[t]);
+}
+$('#tabs').onclick = e => { if (e.target.dataset.t) openTab(e.target.dataset.t); };
+
+const bars = (box, rows) => box.replaceChildren(...(rows.length ? (() => { const max = Math.max(1, ...rows.map(x => x.c)); return rows.map(x => el('div', { className: 'brow' }, el('span', { textContent: x.k }), el('div', { className: 'bar' }, el('i', { style: `width:${x.c / max * 100}%` })), el('b', { textContent: x.c }))); })() : [el('p', { className: 'sub', textContent: 'Belum ada data.' })]));
+
+async function loadSummary() {
+  const s = await api('/api/admin/summary');
+  const label = { soon: 'Belum dibuka', open: 'DIBUKA', closed: 'Ditutup' }[s.status];
+  $('#stats').replaceChildren(...[[label, 'Status voting', ''], [s.voters.c - s.voters.voided, 'Pemilih sah', s.voters.voided ? `${s.voters.voided} dibatalkan` : ''], [s.votes, 'Total suara sah', ''], [s.voters.mkt, 'Bersedia dihubungi promo', '']]
+    .map(([n, l, sm]) => el('div', { className: 'stat' }, el('b', { textContent: n }), el('span', { textContent: l }), el('small', { textContent: sm }))));
+  $('#results').replaceChildren(...s.results.filter(c => c.bikes.length).map(c => el('div', { className: 'card' }, el('h2', { textContent: c.name }), el('p', { className: 'sub', textContent: `${c.total} suara` }),
+    el('div', { className: 'bars' }, ...c.bikes.map((b, i) => el('div', { className: 'brow' }, el('span', { textContent: (i === 0 && b.votes ? '🏆 ' : '') + `#${b.number} ${b.name}` }), el('div', { className: 'bar' }, el('i', { style: `width:${b.pct}%` })), el('b', { textContent: `${b.votes} (${b.pct}%)` })))))));
+  bars($('#byCommunity'), s.byCommunity); bars($('#byMotor'), s.byMotor);
+  $('#susp').classList.toggle('hidden', !s.suspicious.length);
+  $('#suspList').replaceChildren(...s.suspicious.map(x => el('div', { className: 'sub2', textContent: `Satu jaringan: ${x.c} pendaftar` })));
+}
+
+/* motor & kategori */
+let CAT = [], editId = null, photoData = null;
+async function loadBikes() {
+  CAT = await api('/api/admin/catalog');
+  $('#bCat').replaceChildren(...CAT.map(c => el('option', { value: c.id, textContent: c.name })));
+  $('#catList').replaceChildren(...(CAT.length ? CAT.map(c => el('div', { className: 'row-actions', style: 'margin:6px 0' }, el('b', { textContent: c.name }), el('span', { className: 'sub2', textContent: `${c.bikes.length} motor` }),
+    el('button', { className: 'btn sm danger', textContent: 'Hapus', onclick: () => confirm('Hapus kategori ' + c.name + '?') && run(async () => { await api('/api/admin/categories/' + c.id, 'DELETE'); await loadBikes(); }) }))) : [el('p', { className: 'sub', textContent: 'Belum ada kategori. Tambahkan dulu.' })]));
+  const rows = [];
+  for (const c of CAT) for (const b of c.bikes) rows.push(el('tr', { className: b.active ? '' : 'cancelled' },
+    el('td', {}, b.has_photo ? el('img', { className: 'thumb', src: '/api/photo/' + b.id + '?' + Date.now() }) : '—'), el('td', { textContent: '#' + b.number }),
+    el('td', {}, el('b', { textContent: b.name }), el('div', { className: 'small', textContent: [b.owner, b.info].filter(Boolean).join(' • ') })), el('td', { textContent: c.name }),
+    el('td', { textContent: b.active ? 'Tampil' : 'Disembunyikan' }),
+    el('td', {}, el('div', { className: 'row-actions' },
+      el('button', { className: 'btn sm ghost', textContent: 'Edit', onclick: () => editBike(c, b) }),
+      el('button', { className: 'btn sm ghost', textContent: b.active ? 'Sembunyikan' : 'Tampilkan', onclick: () => run(async () => { await api('/api/admin/bikes/' + b.id, 'PUT', { ...b, active: !b.active }); await loadBikes(); }) }),
+      el('button', { className: 'btn sm danger', textContent: 'Hapus', onclick: () => confirm(`Hapus #${b.number} ${b.name}? Suara untuk motor ini ikut terhapus.`) && run(async () => { await api('/api/admin/bikes/' + b.id, 'DELETE'); await loadBikes(); }) })))));
+  $('#bikeRows').replaceChildren(...rows);
+}
+$('#catAdd').onclick = () => run(async () => { await api('/api/admin/categories', 'POST', { name: $('#catName').value }); $('#catName').value = ''; await loadBikes(); });
+function resetBikeForm() { editId = null; photoData = null; ['bNum', 'bName', 'bOwner', 'bInfo'].forEach(i => $('#' + i).value = ''); $('#bPhoto').value = ''; $('#bPrev').classList.add('hidden'); $('#bikeFormTitle').textContent = 'Tambah motor'; $('#bCancel').classList.add('hidden'); }
+function editBike(c, b) { editId = b.id; photoData = null; $('#bCat').value = c.id; $('#bNum').value = b.number; $('#bName').value = b.name; $('#bOwner').value = b.owner || ''; $('#bInfo').value = b.info || ''; $('#bikeFormTitle').textContent = `Edit motor #${b.number}`; $('#bCancel').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+$('#bCancel').onclick = resetBikeForm;
+$('#bPhoto').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = await createImageBitmap(f); const sc = Math.min(1, 900 / Math.max(img.width, img.height));
+  const cv = Object.assign(document.createElement('canvas'), { width: Math.round(img.width * sc), height: Math.round(img.height * sc) });
+  cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+  photoData = cv.toDataURL('image/jpeg', 0.8); $('#bPrev').src = photoData; $('#bPrev').classList.remove('hidden');
+};
+$('#bSave').onclick = () => run(async () => {
+  const body = { category_id: Number($('#bCat').value), number: $('#bNum').value, name: $('#bName').value, owner: $('#bOwner').value, info: $('#bInfo').value, photo: photoData };
+  if (editId) await api('/api/admin/bikes/' + editId, 'PUT', { ...body, active: true }); else await api('/api/admin/bikes', 'POST', body);
+  toast('Tersimpan'); resetBikeForm(); await loadBikes();
+});
+
+/* pemilih */
+let qT; $('#q').addEventListener('input', () => { clearTimeout(qT); qT = setTimeout(() => run(loadVoters), 250); });
+async function loadVoters() {
+  const rows = await api('/api/admin/voters?q=' + encodeURIComponent($('#q').value));
+  $('#vCount').textContent = rows.length + ' pemilih';
+  $('#vRows').replaceChildren(...rows.map(r => el('tr', { className: r.void ? 'cancelled' : '' },
+    el('td', { textContent: fmt(r.created_at) }), el('td', {}, el('b', { textContent: r.name }), el('div', { className: 'small', textContent: r.city || '' })),
+    el('td', {}, el('div', { textContent: r.phone }), el('div', { className: 'small', textContent: r.email || '' })),
+    el('td', { textContent: r.community || '—' }), el('td', { textContent: r.motor || '—' }),
+    el('td', {}, el('b', { textContent: r.votes }), r.same_ip >= 6 ? el('div', { className: 'small', style: 'color:var(--warn)', textContent: `⚠ ${r.same_ip} dari jaringan sama` }) : ''),
+    el('td', { textContent: r.consent_mkt ? 'Ya' : 'Tidak' }),
+    el('td', {}, el('button', { className: 'btn sm ' + (r.void ? 'ghost' : 'danger'), textContent: r.void ? 'Pulihkan' : 'Batalkan', onclick: () => confirm((r.void ? 'Pulihkan ' : 'Batalkan suara ') + r.name + '?') && run(async () => { await api(`/api/admin/voters/${r.id}/void`, 'POST', { void: !r.void }); await loadVoters(); }) })))));
+}
+
+/* pengaturan */
+async function loadSettings() {
+  const s = await api('/api/admin/settings');
+  document.querySelectorAll('#setForm [name]').forEach(i => { if (i.type === 'checkbox') i.checked = s[i.name] === '1'; else i.value = s[i.name] ?? ''; });
+}
+$('#saveSet').onclick = () => run(async () => {
+  const b = {}; document.querySelectorAll('#setForm [name]').forEach(i => b[i.name] = i.type === 'checkbox' ? i.checked : i.value);
+  await api('/api/admin/settings', 'PUT', b); toast('Tersimpan');
+});
+
+function start() { $('#login').classList.add('hidden'); $('#app').classList.remove('hidden'); openTab('summary'); }
+fetch('/api/admin/me').then(async r => { if (!r.ok) return showLogin(); start(); });
+setInterval(() => { if (!$('#t-summary').classList.contains('hidden') && !document.hidden) run(loadSummary); }, 15000);
+</script>
+</body>
+</html>

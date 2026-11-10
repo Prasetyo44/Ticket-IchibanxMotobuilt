@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0c0c10">
+<title>People's Choice – Ichiban x Motobuilt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Kanit:ital,wght@1,700;1,800&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🏆%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<style>
+.cat { margin-bottom: 22px; }
+.cat h3 { font-family: var(--font-head); font-style: italic; text-transform: uppercase; font-size: 22px; margin: 0 0 4px; }
+.cat .done { color: var(--ok); font-weight: 800; font-size: 14px; }
+.bikes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 10px; }
+.bike { border: 2px solid var(--line); border-radius: 14px; background: #fff; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; text-align: left; font: inherit; padding: 0; color: var(--ink); }
+.bike:hover { border-color: var(--accent); }
+.bike .ph { aspect-ratio: 4 / 3; background: #e9e9ef center / cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 34px; color: #b7b7c4; }
+.bike .tx { padding: 9px 11px 11px; }
+.bike .no { display: inline-block; background: var(--ink); color: #fff; font-weight: 800; font-size: 12px; border-radius: 6px; padding: 2px 8px; }
+.bike b { display: block; margin-top: 5px; font-size: 14.5px; line-height: 1.25; }
+.bike small { color: var(--muted); font-size: 12.5px; }
+.bike.picked { border-color: var(--ok); box-shadow: 0 0 0 3px rgba(21,128,61,.25); }
+.bike.locked { cursor: default; opacity: .55; }
+.bike.locked.picked { opacity: 1; }
+.res { margin: 8px 0; }
+.res .row { display: grid; grid-template-columns: 1fr 64px; gap: 10px; align-items: center; margin: 7px 0; font-size: 14px; }
+.res .bar { height: 10px; background: #eceef8; border-radius: 99px; overflow: hidden; margin-top: 4px; }
+.res .bar i { display: block; height: 100%; background: linear-gradient(90deg, #9f0f18, #ff4b57); }
+.res .win { color: var(--accent-ink); font-weight: 800; }
+.banner { padding: 11px 14px; border-radius: 12px; font-size: 14px; margin: 10px 0; }
+.banner.bad { background: var(--bad-bg); color: var(--bad); }
+.banner.ok { background: var(--ok-bg); color: var(--ok); }
+.banner.warn { background: var(--warn-bg); color: var(--warn); }
+main { max-width: 760px; margin: -64px auto 0; padding: 0 14px 30px; position: relative; }
+.card { padding: 20px; }
+</style>
+</head>
+<body class="moto">
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">People's Choice • Ichiban Paint x Motobuilt</div>
+    <h1 id="title" class="moto-title">People's Choice</h1>
+    <img class="poster-img" src="/img/poster.jpg" width="1080" height="1350" alt="Poster Ichiban Paint Motobuilt Modification Contest 2026">
+  </div>
+</header>
+<main>
+  <section class="card" id="stateCard"><p class="sub" style="margin:0">Memuat…</p></section>
+
+  <section class="card hidden" id="joinCard" style="margin-top:16px">
+    <h2>Isi data singkat untuk ikut memilih</h2>
+    <p class="sub" id="intro"></p>
+    <form id="form" novalidate autocomplete="on">
+      <div class="grid">
+        <div class="field full hidden" id="codeBox" data-f="code"><label class="f" for="code">Kode lokasi</label><input type="text" id="code" autocomplete="off" placeholder="Tanya panitia di lokasi acara"><div class="errmsg"></div></div>
+        <div class="field" data-f="name"><label class="f" for="name">Nama lengkap</label><input type="text" id="name" autocomplete="name" required><div class="errmsg"></div></div>
+        <div class="field" data-f="phone"><label class="f" for="phone">Nomor HP / WhatsApp</label><input type="tel" id="phone" inputmode="tel" autocomplete="tel" placeholder="0812xxxxxxxx" required><div class="errmsg"></div><div class="hint">Satu nomor hanya satu pemilih.</div></div>
+        <div class="field" data-f="email"><label class="f" for="email">Email <span class="opt">(opsional)</span></label><input type="email" id="email" autocomplete="email"><div class="errmsg"></div></div>
+        <div class="field" data-f="city"><label class="f" for="city">Kota <span class="opt">(opsional)</span></label><input type="text" id="city" autocomplete="address-level2"><div class="errmsg"></div></div>
+        <div class="field" data-f="community"><label class="f" for="community">Komunitas / klub <span class="opt">(opsional)</span></label><input type="text" id="community" maxlength="60" placeholder="Kosongkan jika individu"><div class="errmsg"></div></div>
+        <div class="field" data-f="motor"><label class="f" for="motor">Motor yang kamu pakai <span class="opt">(opsional)</span></label><input type="text" id="motor" maxlength="80" placeholder="mis. Honda CB150R, Vespa Sprint"><div class="errmsg"></div></div>
+        <div class="full" id="tsBox"></div>
+        <div class="field full" data-f="consent"><label class="check"><input type="checkbox" id="consent"> <span>Saya setuju data saya (nama, nomor HP, dan isian di atas) dipakai penyelenggara <b>untuk menjalankan voting ini</b> dan menghitung suara yang sah.</span></label><div class="errmsg"></div></div>
+        <div class="full"><label class="check"><input type="checkbox" id="consentMkt"> <span>Saya <b>juga bersedia</b> dihubungi Ichiban Paint untuk info produk, promo, dan acara berikutnya. <i>(Opsional, tidak memengaruhi hak memilih.)</i></span></label></div>
+      </div>
+      <div id="formErr" class="banner bad hidden"></div>
+      <button class="btn block" id="joinBtn" type="submit" style="margin-top:14px">Lanjut ke voting</button>
+    </form>
+  </section>
+
+  <section id="voteWrap" class="hidden" style="margin-top:16px"></section>
+  <section class="card hidden" id="resCard" style="margin-top:16px"></section>
+</main>
+<div class="copyright">&copy; 2026 by Prasetyo</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const el = (t, a = {}, ...k) => { const e = Object.assign(document.createElement(t), a); e.append(...k); return e; };
+let cfg, me = null, votes = {};
+
+async function api(path, opt) {
+  const r = await fetch(path, opt && { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(opt) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(d.error || 'Terjadi kesalahan.'); e.field = d.field; throw e; }
+  return d;
+}
+
+async function load() {
+  cfg = await api('/api/config');
+  const m = await api('/api/me');
+  me = m.voter; votes = m.votes || {};
+  $('#title').textContent = cfg.title;
+  document.title = cfg.title;
+  render();
+}
+
+function banner(cls, html) { return el('div', { className: 'banner ' + cls, innerHTML: html }); }
+
+function render() {
+  const st = $('#stateCard'); st.replaceChildren(); st.classList.remove('hidden');
+  $('#joinCard').classList.add('hidden'); $('#voteWrap').classList.add('hidden'); $('#resCard').classList.add('hidden');
+  if (!cfg.categories.length || cfg.categories.every(c => !c.bikes.length)) {
+    st.append(el('h2', { textContent: 'Segera hadir' }), el('p', { className: 'sub', textContent: 'Daftar motor belum tersedia. Silakan kembali beberapa saat lagi.' }));
+    return;
+  }
+  if (cfg.status === 'soon') {
+    st.append(el('h2', { textContent: 'Voting belum dibuka' }), el('p', { className: 'sub', style: 'margin:0', textContent: 'Tunggu pengumuman dari panitia di lokasi acara.' }));
+    return;
+  }
+  if (cfg.status === 'closed') {
+    st.append(el('h2', { textContent: 'Voting sudah ditutup' }), el('p', { className: 'sub', style: 'margin:0', textContent: me ? `Terima kasih ${me.name}, suaramu sudah tercatat.` : 'Terima kasih sudah berpartisipasi.' }));
+    if (cfg.results) renderResults();
+    else st.append(el('p', { className: 'sub', style: 'margin:10px 0 0', textContent: 'Pemenang akan diumumkan oleh panitia.' }));
+    return;
+  }
+  // open
+  if (!me) {
+    st.classList.add('hidden');
+    $('#joinCard').classList.remove('hidden');
+    $('#intro').textContent = cfg.intro;
+    $('#codeBox').classList.toggle('hidden', !cfg.needs_code);
+    initTurnstile();
+    return;
+  }
+  st.classList.remove('hidden');
+  const total = cfg.categories.filter(c => c.bikes.length).length;
+  const done = Object.keys(votes).length;
+  st.append(el('h2', { textContent: `Halo, ${me.name}` }),
+    el('p', { className: 'sub', style: 'margin:0', textContent: done >= total ? 'Semua suara sudah masuk. Terima kasih!' : cfg.intro }),
+    banner(done >= total ? 'ok' : 'warn', `<b>${done} dari ${total}</b> kategori sudah dipilih.`));
+  renderVote();
+}
+
+function renderVote() {
+  const w = $('#voteWrap'); w.classList.remove('hidden'); w.replaceChildren();
+  for (const c of cfg.categories) {
+    if (!c.bikes.length) continue;
+    const picked = votes[c.id];
+    const box = el('div', { className: 'card cat' }, el('h3', { textContent: c.name }));
+    box.append(picked ? el('div', { className: 'done', textContent: '✓ Suaramu sudah masuk' }) : el('p', { className: 'sub', style: 'margin:0', textContent: 'Ketuk motor pilihanmu.' }));
+    const grid = el('div', { className: 'bikes' });
+    for (const b of c.bikes) {
+      const btn = el('button', { type: 'button', className: 'bike' + (picked === b.id ? ' picked' : '') + (picked ? ' locked' : '') });
+      const ph = el('div', { className: 'ph', textContent: b.has_photo ? '' : '🏍️' });
+      if (b.has_photo) ph.style.backgroundImage = `url(/api/photo/${b.id})`;
+      btn.append(ph, el('div', { className: 'tx' }, el('span', { className: 'no', textContent: '#' + b.number }), el('b', { textContent: b.name }), el('small', { textContent: [b.owner, b.info].filter(Boolean).join(' • ') })));
+      if (!picked) btn.onclick = () => castVote(c, b);
+      grid.append(btn);
+    }
+    box.append(grid); w.append(box);
+  }
+}
+
+async function castVote(c, b) {
+  if (!confirm(`Pilih #${b.number} ${b.name} untuk kategori ${c.name}?\nPilihan tidak bisa diubah.`)) return;
+  try { await api('/api/vote', { category_id: c.id, bike_id: b.id }); votes[c.id] = b.id; render(); }
+  catch (e) { alert(e.message); if (/sudah memilih/.test(e.message)) { await load(); } }
+}
+
+function renderResults() {
+  const rc = $('#resCard'); rc.classList.remove('hidden'); rc.replaceChildren(el('h2', { textContent: 'Hasil People\'s Choice' }));
+  for (const c of cfg.results) {
+    if (!c.bikes.length) continue;
+    rc.append(el('h3', { textContent: c.name, style: 'margin:16px 0 4px;font-size:17px' }));
+    const res = el('div', { className: 'res' });
+    c.bikes.forEach((b, i) => res.append(el('div', {}, el('div', { className: 'row' },
+      el('div', { className: i === 0 && b.votes ? 'win' : '' }, (i === 0 && b.votes ? '🏆 ' : '') + `#${b.number} ${b.name}`, el('div', { className: 'bar' }, el('i', { style: `width:${b.pct}%` }))),
+      el('b', { textContent: `${b.pct}%`, style: 'text-align:right' })))));
+    rc.append(res);
+  }
+}
+
+/* ---- form ---- */
+function initTurnstile() {
+  if (!cfg.turnstile_site_key || $('#tsBox').dataset.on) return;
+  $('#tsBox').dataset.on = '1';
+  $('#tsBox').append(el('div', { className: 'cf-turnstile', 'data-sitekey': cfg.turnstile_site_key }));
+  document.head.append(Object.assign(document.createElement('script'), { src: 'https://challenges.cloudflare.com/turnstile/v0/api.js', async: true, defer: true }));
+}
+function fieldErr(f, msg) {
+  document.querySelectorAll('.field.err').forEach(x => { x.classList.remove('err'); x.querySelector('.errmsg').textContent = ''; });
+  const d = document.querySelector(`[data-f="${f}"]`);
+  if (d) { d.classList.add('err'); d.querySelector('.errmsg').textContent = msg; d.scrollIntoView({ block: 'center', behavior: 'smooth' }); } else { $('#formErr').textContent = msg; $('#formErr').classList.remove('hidden'); }
+}
+$('#form').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('#formErr').classList.add('hidden');
+  document.querySelectorAll('.field.err').forEach(x => { x.classList.remove('err'); x.querySelector('.errmsg').textContent = ''; });
+  const body = {
+    code: $('#code').value, name: $('#name').value, phone: $('#phone').value, email: $('#email').value, city: $('#city').value,
+    community: $('#community').value, motor: $('#motor').value, consent: $('#consent').checked, consent_mkt: $('#consentMkt').checked,
+    turnstile: document.querySelector('[name="cf-turnstile-response"]')?.value || '',
+  };
+  if (cfg.needs_code && !body.code.trim()) return fieldErr('code', 'Kode lokasi wajib diisi.');
+  if (body.name.trim().length < 2) return fieldErr('name', 'Nama wajib diisi.');
+  if (!body.phone.trim()) return fieldErr('phone', 'Nomor HP wajib diisi.');
+  if (!body.consent) return fieldErr('consent', 'Centang persetujuan untuk ikut memilih.');
+  const btn = $('#joinBtn'); btn.disabled = true;
+  try { await api('/api/join', body); await load(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  catch (err) { fieldErr(err.field, err.message); window.turnstile?.reset?.(); }
+  finally { btn.disabled = false; }
+});
+load().catch(e => { $('#stateCard').replaceChildren(banner('bad', e.message)); });
+</script>
+</body>
+</html>
