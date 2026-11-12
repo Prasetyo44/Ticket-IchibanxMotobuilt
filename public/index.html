@@ -36,6 +36,7 @@
 
   <section class="card" id="formCard">
     <div id="closed" class="banner bad hidden"></div>
+    <div id="preNote" class="banner warn hidden">⏳ QR tiket dari IMOS dibagikan setelah tersedia. Kamu tetap bisa mendaftar sekarang. Tiketnya muncul otomatis di halaman tiketmu begitu QR dibagikan.</div>
     <h2>Isi data kamu</h2>
     <p class="sub" id="intro">Setiap karyawan mendapat <b>maksimal 2 tiket</b> (untuk kamu dan 1 tamu). Tiket (QR Code) langsung muncul di website setelah form dikirim, tidak dikirim lewat WhatsApp atau email. Butuh lebih dari 2 tiket? Daftar dulu, lalu ajukan tiket tambahan lewat halaman tiketmu. HRD yang memutuskan.</p>
 
@@ -228,6 +229,7 @@ function renderConfig() {
     }
     $('#quotaText').textContent = cfg.remaining > 0 ? `Sisa ${cfg.remaining} tiket` : 'Kuota tiket sudah habis';
   }
+  if (cfg.prereg && cfg.open) $('#preNote').classList.remove('hidden');
   if (!cfg.open) {
     const c = $('#closed'); c.textContent = cfg.closedReason || 'Pendaftaran ditutup.'; c.classList.remove('hidden');
     form.querySelectorAll('input,select,textarea,button').forEach(el => el.disabled = true);

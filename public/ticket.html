@@ -71,6 +71,9 @@ function el(tag, props = {}, ...kids) {
 // Hanya diberi bingkai putih di sekelilingnya supaya kontras dan mudah dipindai.
 function qrBlock(t, cancelled) {
   if (cancelled) return [el('div', { className: 'qr-gone', textContent: 'QR sudah dihapus karena tiket dibatalkan' })];
+  if (t.waiting) {
+    return [el('div', { className: 'banner warn', style: 'margin:14px 0;text-align:left', innerHTML: '⏳ <b>QR tiket belum tersedia.</b> Pendaftaranmu sudah tercatat dan QR akan muncul di sini otomatis setelah dibagikan panitia. Simpan link halaman ini, lalu buka lagi nanti.' })];
+  }
   if (t.file && t.file.mime.startsWith('image/')) {
     return [
       el('div', { className: 'qr-plate' }, el('img', { className: 'qr', src: t.file.url, alt: 'QR tiket ' + t.seq, draggable: false })),
@@ -117,10 +120,11 @@ fetch('/api/ticket/' + encodeURIComponent(token)).then(async r => {
         el('div', { className: 'who', textContent: t.kind === 'employee' ? 'Karyawan' : t.kind === 'public' ? 'Pendaftar' : 'Tamu' }),
         el('div', { className: 'name', textContent: t.holder }),
         ...qrBlock(t, cancelled),
-        el('div', { style: 'margin-top:12px' }, badge),
+        el('div', { style: 'margin-top:12px' }, t.waiting && !cancelled ? el('span', { className: 'badge warn', textContent: 'Menunggu QR' }) : badge),
         ...(d.event.dresscode ? [el('div', { className: 'dress', textContent: '👔 ' + d.event.dresscode })] : [])),
       el('div', { className: 'bar-teal' }, el('span', { textContent: '@MOTOBUILT.FEST' }), el('span', { textContent: 'Moto Built Fest 2026' }))));
   });
+  if (!cancelled && d.tickets.some(t => t.waiting)) setTimeout(() => location.reload(), 30000); // cek lagi sampai QR dibagikan
   if (d.mode === 'umum') { $('#cWho').textContent = 'Email'; $('#cNik').type = 'email'; $('#cNik').removeAttribute('autocapitalize'); }
   if (!cancelled) {
     $('#cancelRow').classList.remove('hidden');

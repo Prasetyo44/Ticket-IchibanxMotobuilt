@@ -119,6 +119,7 @@
           <div class="full"><label class="f">Info di tiket</label><textarea name="info" rows="2"></textarea></div>
           <div class="full kar"><label class="f">Daftar bagian <span class="opt">(satu per baris)</span></label><textarea name="departments" rows="7"></textarea></div>
           <div class="full"><label class="check"><input type="checkbox" name="registration_open"> <span>Pendaftaran dibuka</span></label></div>
+          <div class="full"><label class="check"><input type="checkbox" name="prereg"> <span><b>Antrean QR:</b> terima pendaftaran walau QR dari IMOS belum ada. QR dibagikan otomatis, urut pendaftar, saat Anda mengunggahnya. Isi <b>Kuota</b> agar jumlah pendaftar terbatas.</span></label></div>
         </div>
         <div style="margin-top:16px"><button class="btn" id="saveSet">Simpan pengaturan</button></div>
       </div>
@@ -192,6 +193,7 @@ async function loadSummary() {
     [s.tickets, 'Total tiket', `${s.withGuest} bawa tamu`],
     [s.pendingRequests, 'Permintaan tiket tambahan', s.pendingRequests ? 'menunggu keputusan (tab Tiket tambahan)' : 'tidak ada yang menunggu'],
     [s.remaining ?? '∞', 'Sisa tiket', `stok IMOS: ${s.qr.available} dari ${s.qr.total} file`],
+    ...(s.prereg || s.waiting ? [[s.waiting, 'Menunggu QR', s.waiting ? 'unggah QR di tab Stok QR IMOS' : 'semua tiket sudah dapat QR']] : []),
   ];
   $('#stats').replaceChildren(...cards.filter((c, i) => !(UMUM && i === 2)).map(([n, l, sm]) => el('div', { className: 'stat' }, el('b', { textContent: n }), el('span', { textContent: l }), el('small', { textContent: sm }))));
   const max = Math.max(1, ...s.byDept.map(x => x.tickets));
@@ -227,7 +229,8 @@ async function loadRegs() {
     }
     return el('tr', { className: r.status === 'active' ? '' : 'cancelled' },
       el('td', { textContent: fmt(r.created_at) }),
-      el('td', {}, el('b', { textContent: r.name }), el('div', { className: 'small', textContent: UMUM ? '' : r.nik })),
+      el('td', {}, el('b', { textContent: r.name }), el('div', { className: 'small', textContent: UMUM ? '' : r.nik }),
+        r.status === 'active' && r.waiting ? el('span', { className: 'badge warn', textContent: `⏳ ${r.waiting} tiket menunggu QR` }) : ''),
       el('td', { className: 'kar', textContent: r.dept }),
       el('td', { className: 'umumonly', textContent: r.dept === 'Umum' ? '—' : r.dept }),
       el('td', {}, el('b', { textContent: r.ticket_count + ' tiket' }), el('div', { className: 'small', textContent: r.guest_name ? 'Tamu: ' + r.guest_name : '—' })),
@@ -274,8 +277,9 @@ async function loadRequests() {
 
 async function loadQr() {
   const d = await api('/api/admin/qr');
-  const c = d.counts;  $('#qrStats').replaceChildren(...[[c.total, 'Total file', ''], [c.available, 'Tersedia', 'belum dibagikan'], [c.assigned, 'Sudah dibagikan', 'sedang dipakai peserta']]
+  const c = d.counts;  $('#qrStats').replaceChildren(...[[c.total, 'Total file', ''], [c.available, 'Tersedia', 'belum dibagikan'], [c.assigned, 'Sudah dibagikan', 'sedang dipakai peserta'], [c.waiting, 'Menunggu QR', c.waiting ? 'dibagikan otomatis saat QR diunggah' : 'tidak ada antrean']]
     .map(([n, l, sm]) => el('div', { className: 'stat' }, el('b', { textContent: n }), el('span', { textContent: l }), el('small', { textContent: sm }))));
+  if (c.waiting && c.available) $('#qrStats').append(el('div', { className: 'stat' }, el('button', { className: 'btn sm', textContent: 'Bagikan sekarang', onclick: () => run(async () => { await api('/api/admin/qr/allocate', { method: 'POST' }); toast('QR dibagikan ke antrean'); await loadQr(); }) })));
   $('#qrRows').replaceChildren(...d.items.map(q => {
     const thumb = q.mime.startsWith('image/')
       ? el('img', { src: `/api/admin/qr/${q.id}/file`, loading: 'lazy', style: 'width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--line);background:#fff' })

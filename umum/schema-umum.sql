@@ -61,3 +61,4 @@ CREATE TABLE IF NOT EXISTS rate_hits (k TEXT NOT NULL, t INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS ix_rate ON rate_hits(k, t);
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_reg_email_active ON registrations(email) WHERE status = 'active';
+CREATE UNIQUE INDEX IF NOT EXISTS ux_ticket_qr ON tickets(qr_id) WHERE qr_id IS NOT NULL;

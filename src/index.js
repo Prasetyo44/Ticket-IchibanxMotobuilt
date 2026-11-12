@@ -159,6 +159,7 @@ const DEFAULTS = {
   access_code: '', // kode akses karyawan (dibagikan HRD); kosong = tanpa kode
   registration_deadline: '', // YYYY-MM-DDTHH:mm (WIB); kosong = tanpa batas
   registration_open: '1',
+  prereg: '0', // 1 = terima pendaftaran walau QR belum ada (antrean); QR dibagikan otomatis saat diunggah
   departments: [
     'Produksi', 'QC', 'R&D', 'Gudang', 'Purchasing', 'Finance',
     'HRD / GA', 'Sales & Marketing', 'IT', 'Teknik / Maintenance', 'Lainnya',
@@ -182,35 +183,57 @@ function isOpen(s) {
   return true;
 }
 
+// Bagikan QR yang tersedia ke tiket yang menunggu, urut pendaftaran (FIFO). Dua statement ini selalu dijalankan
+// di dalam batch (satu transaksi) sehingga satu QR tidak mungkin dibagikan dua kali.
+function allocStmts(DB) {
+  return [
+    DB.prepare(
+      `WITH w AS (SELECT t.id AS tid, ROW_NUMBER() OVER (ORDER BY t.reg_id, t.seq) AS rn
+                  FROM tickets t JOIN registrations r ON r.id = t.reg_id WHERE t.qr_id IS NULL AND r.status = 'active'),
+            a AS (SELECT id AS qid, ROW_NUMBER() OVER (ORDER BY id) AS rn FROM qr_stock WHERE status = 'available')
+       UPDATE tickets SET qr_id = (SELECT a.qid FROM w JOIN a ON a.rn = w.rn WHERE w.tid = tickets.id)
+       WHERE id IN (SELECT w.tid FROM w JOIN a ON a.rn = w.rn)`
+    ),
+    DB.prepare(
+      `UPDATE qr_stock SET status = 'assigned', reg_id = (SELECT t.reg_id FROM tickets t WHERE t.qr_id = qr_stock.id)
+       WHERE status = 'available' AND id IN (SELECT qr_id FROM tickets WHERE qr_id IS NOT NULL)`
+    ),
+  ];
+}
+const WAITING_SQL = "SELECT COUNT(*) AS waiting FROM tickets t JOIN registrations r ON r.id = t.reg_id WHERE t.qr_id IS NULL AND r.status = 'active'";
+
 // Satu putaran ke database untuk semua angka yang dibutuhkan
 async function snapshot(env) {
   const r = await env.DB.batch([
     env.DB.prepare('SELECT key, value FROM settings'),
     env.DB.prepare("SELECT COUNT(*) AS regs, COALESCE(SUM(ticket_count), 0) AS tickets FROM registrations WHERE status = 'active'"),
     env.DB.prepare("SELECT COUNT(*) AS total, COALESCE(SUM(status = 'available'), 0) AS available, COALESCE(SUM(status = 'assigned'), 0) AS assigned FROM qr_stock"),
+    env.DB.prepare(WAITING_SQL),
   ]);
   const s = parseSettings(r[0].results);
   const usage = r[1].results[0];
   const qr = r[2].results[0];
+  const waiting = r[3].results[0].waiting;
   const cap = parseInt(s.capacity, 10) || 0;
+  const prereg = s.prereg === '1';
   let remaining = cap ? Math.max(0, cap - usage.tickets) : null;
-  remaining = remaining === null ? qr.available : Math.min(remaining, qr.available);
-  return { s, usage, qr, cap, remaining, open: isOpen(s) };
+  if (!prereg) remaining = remaining === null ? qr.available : Math.min(remaining, qr.available);
+  return { s, usage, qr, cap, remaining, waiting, prereg, open: isOpen(s) };
 }
 
 async function publicConfig(env, req) {
-  const { s, qr, cap, remaining, open } = await snapshot(env);
+  const { s, qr, cap, remaining, open, prereg } = await snapshot(env);
   const mode = modeOf(env);
   if (!(await hasGate(env, req, s))) return { locked: true, event_title: s.event_title, mode };
   let closedReason = null;
   if (!open) closedReason = 'Pendaftaran sudah ditutup.';
-  else if (qr.total === 0) closedReason = 'Tiket belum tersedia. Silakan coba lagi nanti.';
+  else if (!prereg && qr.total === 0) closedReason = 'Tiket belum tersedia. Silakan coba lagi nanti.';
   else if (remaining === 0) closedReason = 'Kuota tiket sudah habis.';
   return {
     event_title: s.event_title, event_date: s.event_date, event_time: s.event_time, venue: s.venue,
     venue_address: s.venue_address, dresscode: s.dresscode, info: s.info, contact: s.contact,
     locked: false, mode, turnstile_site_key: mode === 'umum' ? String(env.TURNSTILE_SITE_KEY || '') : '',
-    max_tickets: mode === 'umum' ? maxTickets(s) : 2,
+    max_tickets: mode === 'umum' ? maxTickets(s) : 2, prereg,
     departments: departmentsOf(s), capacity: cap, remaining,
     registration_deadline: s.registration_deadline, open: open && remaining !== 0, closedReason,
   };
@@ -255,7 +278,8 @@ async function register(env, d, req) {
   }
 
   const cap = parseInt(s.capacity, 10) || 0;
-  let rem = pre[8].results[0].available;
+  const queue = s.prereg === '1'; // antrean: QR belum harus tersedia saat mendaftar
+  let rem = queue ? Infinity : pre[8].results[0].available;
   if (cap) rem = Math.min(rem, Math.max(0, cap - pre[7].results[0].tickets));
   if (rem <= 0) throw new HttpError(409, 'Kuota tiket sudah habis.');
   if (umum && d.ticket_count > maxTickets(s)) throw new HttpError(400, `Maksimal ${maxTickets(s)} tiket per orang.`, 'ticket_count');
@@ -272,25 +296,32 @@ async function register(env, d, req) {
       `INSERT INTO registrations(token, nik, name, dept, address, email, phone, ticket_count, guest_name, notes, created_at)
        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(token, d.nik, d.name, d.dept, d.address, d.email, d.phone, n, d.guest_name || null, d.notes || null, new Date().toISOString()),
-    DB.prepare(
-      `UPDATE qr_stock SET status = 'assigned', reg_id = (SELECT id FROM registrations WHERE token = ?1)
-       WHERE id IN (SELECT id FROM qr_stock WHERE status = 'available' ORDER BY id LIMIT ?2)`
-    ).bind(token, n),
-    // Kalau stok ternyata kurang (dua orang mendaftar bersamaan), baris NULL ini melanggar NOT NULL dan membatalkan semuanya
-    DB.prepare(
-      `INSERT INTO guard(x) SELECT NULL WHERE (SELECT COUNT(*) FROM qr_stock WHERE reg_id = (SELECT id FROM registrations WHERE token = ?1)) < ?2`
-    ).bind(token, n),
   ];
+  if (!queue) {
+    stmts.push(
+      DB.prepare(
+        `UPDATE qr_stock SET status = 'assigned', reg_id = (SELECT id FROM registrations WHERE token = ?1)
+         WHERE id IN (SELECT id FROM qr_stock WHERE status = 'available' ORDER BY id LIMIT ?2)`
+      ).bind(token, n),
+      // Kalau stok ternyata kurang (dua orang mendaftar bersamaan), baris NULL ini melanggar NOT NULL dan membatalkan semuanya.
+      // Juga batal bila masih ada antrean: pendaftar baru tidak boleh menyalip yang sudah menunggu.
+      DB.prepare(
+        `INSERT INTO guard(x) SELECT NULL WHERE (SELECT COUNT(*) FROM qr_stock WHERE reg_id = (SELECT id FROM registrations WHERE token = ?1)) < ?2
+           OR (SELECT COUNT(*) FROM tickets t JOIN registrations r ON r.id = t.reg_id WHERE t.qr_id IS NULL AND r.status = 'active') > 0`
+      ).bind(token, n)
+    );
+  }
   for (const p of people) {
     stmts.push(
       DB.prepare(
         `INSERT INTO tickets(code, reg_id, seq, kind, holder_name, qr_id, file_token)
-         SELECT ?1, r.id, ?2, ?3, ?4, (SELECT id FROM qr_stock WHERE reg_id = r.id ORDER BY id LIMIT 1 OFFSET ?5), ?6
+         SELECT ?1, r.id, ?2, ?3, ?4, CASE WHEN ?8 = 1 THEN NULL ELSE (SELECT id FROM qr_stock WHERE reg_id = r.id ORDER BY id LIMIT 1 OFFSET ?5) END, ?6
          FROM registrations r WHERE r.token = ?7`
-      ).bind(ticketCode(), p.seq, p.kind, p.holder, p.seq - 1, randToken(), token)
+      ).bind(ticketCode(), p.seq, p.kind, p.holder, p.seq - 1, randToken(), token, queue ? 1 : 0)
     );
   }
   stmts.push(DB.prepare('DELETE FROM rereg_allow WHERE nik = ?').bind(d.nik)); // izin daftar ulang hanya sekali pakai
+  if (queue) stmts.push(...allocStmts(DB)); // langsung dapat QR bila stok ada, selain itu masuk antrean
   try {
     await DB.batch(stmts);
   } catch (e) {
@@ -315,6 +346,7 @@ async function cancelRegistration(env, id, by = 'admin') {
       "UPDATE qr_stock SET status = 'available', reg_id = NULL WHERE reg_id = ?1 AND (SELECT status FROM registrations WHERE id = ?1) = 'cancelled'"
     ).bind(id),
     DB.prepare("UPDATE tickets SET qr_id = NULL, file_token = NULL WHERE reg_id = ?1 AND (SELECT status FROM registrations WHERE id = ?1) = 'cancelled'").bind(id),
+    ...allocStmts(DB), // QR yang baru kembali ke stok langsung diberikan ke antrean berikutnya
   ]);
   return r[0].meta.changes > 0;
 }
@@ -368,6 +400,8 @@ async function approveRequest(env, id) {
   if (!rq) throw new HttpError(404, 'Permintaan tidak ditemukan.');
   if (rq.status !== 'pending') throw new HttpError(409, 'Permintaan ini sudah diputuskan.');
   if (rq.reg_status !== 'active') throw new HttpError(409, 'Pendaftaran karyawan ini sudah dibatalkan.');
+  const wq = await DB.prepare(WAITING_SQL).first();
+  if (wq.waiting > 0) throw new HttpError(409, `Masih ada ${wq.waiting} tiket yang menunggu QR. Upload QR dulu sampai antrean habis, baru setujui tiket tambahan.`);
   if (rq.stock < rq.extra) throw new HttpError(409, `Stok QR tidak cukup (tersedia ${rq.stock}, diminta ${rq.extra}). Upload QR tambahan dari IMOS dulu.`);
   const names = JSON.parse(rq.guests);
   const now = new Date().toISOString();
@@ -411,7 +445,8 @@ async function adminList(env, q, origin) {
   const { results } = await env.DB.prepare(
     `SELECT r.id, r.token, r.nik, r.name, r.dept, r.address, r.email, r.phone, r.ticket_count,
             r.guest_name, r.notes, r.status, r.created_at, r.cancelled_by, r.cancelled_at,
-            (SELECT 1 FROM rereg_allow a WHERE a.nik = r.nik) AS rereg_allowed
+            (SELECT 1 FROM rereg_allow a WHERE a.nik = r.nik) AS rereg_allowed,
+            (SELECT COUNT(*) FROM tickets t WHERE t.reg_id = r.id AND t.qr_id IS NULL) AS waiting
      FROM registrations r
      WHERE (?1 = '' OR r.name LIKE ?2 OR r.nik LIKE ?2 OR r.dept LIKE ?2 OR r.guest_name LIKE ?2 OR r.phone LIKE ?2 OR r.email LIKE ?2)
      ORDER BY r.id DESC`
@@ -435,6 +470,8 @@ async function stats(env, origin) {
     withGuest: r[1].results[0].c,
     capacity: snap.cap,
     remaining: snap.remaining,
+    waiting: snap.waiting,
+    prereg: snap.prereg,
     byDept: r[0].results,
     employees: r[2].results[0].c,
     employeesRegistered: r[2].results[0].c ? r[3].results[0].c : 0,
@@ -673,7 +710,8 @@ async function handle(req, env, ctx) {
       registration: { name: reg.name, dept: reg.dept, status: reg.status },
       tickets: tk.results.map((t) => ({
         seq: t.seq, kind: t.kind, holder: t.holder_name, used: false,
-        file: t.file_token && reg.status === 'active' ? { url: `/f/${t.file_token}`, mime: t.qr_mime } : null,
+        waiting: reg.status === 'active' && !t.qr_mime,
+        file: t.file_token && t.qr_mime && reg.status === 'active' ? { url: `/f/${t.file_token}`, mime: t.qr_mime } : null,
       })),
     });
   }
@@ -768,7 +806,7 @@ async function handle(req, env, ctx) {
         event_date: clean(b.event_date, 80), event_time: clean(b.event_time, 60), venue: clean(b.venue, 120),
         venue_address: clean(b.venue_address, 200), dresscode: clean(b.dresscode, 120), info: cleanMultiline(b.info, 400),
         contact: clean(b.contact, 120), capacity: String(cap), max_tickets: String(mt), access_code: clean(b.access_code, 40), registration_deadline: dl,
-        registration_open: b.registration_open ? '1' : '0', departments: depts.join('\n'),
+        registration_open: b.registration_open ? '1' : '0', prereg: b.prereg ? '1' : '0', departments: depts.join('\n'),
       };
       await env.DB.batch(
         Object.entries(vals).map(([k, v]) =>
@@ -813,6 +851,7 @@ async function handle(req, env, ctx) {
         `INSERT INTO qr_stock(filename, mime, size, sha256, data, uploaded_at) VALUES(?1, ?2, ?3, ?4, ?5, ?6)
          ON CONFLICT(sha256) DO NOTHING`
       ).bind(filename, t[0], buf.byteLength, sha, toB64(buf), new Date().toISOString()).run();
+      if (r.meta.changes) await env.DB.batch(allocStmts(env.DB)); // bagikan ke antrean (kalau ada)
       return json(r.meta.changes ? { ok: true, id: r.meta.last_row_id } : { ok: true, duplicate: true });
     }
     if (m === 'GET' && p === '/api/admin/qr') {
@@ -826,7 +865,13 @@ async function handle(req, env, ctx) {
            ORDER BY q.id`
         ),
       ]);
-      return json({ counts: r[0].results[0], items: r[1].results });
+      const w = await env.DB.prepare(WAITING_SQL).first();
+      return json({ counts: { ...r[0].results[0], waiting: w.waiting }, items: r[1].results });
+    }
+    if (m === 'POST' && p === '/api/admin/qr/allocate') {
+      await env.DB.batch(allocStmts(env.DB));
+      const w = await env.DB.prepare(WAITING_SQL).first();
+      return json({ ok: true, waiting: w.waiting });
     }
     if (m === 'GET' && (g = p.match(/^\/api\/admin\/qr\/(\d+)\/file$/))) {
       const q = await env.DB.prepare('SELECT mime, data FROM qr_stock WHERE id = ?').bind(Number(g[1])).first();
