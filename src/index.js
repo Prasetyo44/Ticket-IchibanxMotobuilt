@@ -623,15 +623,15 @@ async function handle(req, env, ctx) {
     const b = await readJson(req, 50_000);
     const umum = modeOf(env) === 'umum';
     const d = {
-      nik: umum ? '' : normalizeNik(b.nik), name: clean(b.name, 80), dept: umum ? (clean(b.community, 60) || 'Umum') : clean(b.dept, 60), address: umum ? '-' : clean(b.address, 300),
-      email: clean(b.email, 120).toLowerCase(), phone: normalizePhone(b.phone), ticket_count: Number(b.ticket_count),
-      guest_name: clean(b.guest_name, 80), notes: clean(b.notes, 200),
+      nik: umum ? '' : normalizeNik(b.nik), name: clean(b.name, 80), dept: umum ? (clean(b.community, 60) || 'Umum') : clean(b.dept, 60), address: '-', // alamat tidak lagi diminta
+      email: umum ? clean(b.email, 120).toLowerCase() : '', // karyawan: email tidak diminta
+      phone: normalizePhone(b.phone), ticket_count: Number(b.ticket_count),
+      guest_name: clean(b.guest_name, 80), notes: umum ? clean(b.notes, 200) : '',
     };
     if (!umum && !/^[A-Z0-9._/-]{3,30}$/.test(d.nik)) throw new HttpError(400, 'ID karyawan tidak valid (3–30 karakter huruf/angka).', 'nik');
     if (d.name.length < 2) throw new HttpError(400, 'Nama lengkap wajib diisi.', 'name');
     if (!d.dept) throw new HttpError(400, 'Pilih bagian.', 'dept');
-    if (!umum && d.address.length < 5) throw new HttpError(400, 'Alamat wajib diisi.', 'address');
-    if (!isValidEmail(d.email)) throw new HttpError(400, 'Format email tidak valid.', 'email');
+    if (umum && !isValidEmail(d.email)) throw new HttpError(400, 'Format email tidak valid.', 'email');
     if (!isValidPhone(d.phone)) throw new HttpError(400, 'Nomor HP/WhatsApp tidak valid (contoh: 0812 3456 7890).', 'phone');
     if (umum) {
       // Mode umum: jumlah tiket per orang bisa diatur admin (maks_tiket 1–10); satu nama tamu per tiket tambahan
@@ -776,13 +776,13 @@ async function handle(req, env, ctx) {
       const um = modeOf(env) === 'umum';
       const head = um
         ? ['No', 'Waktu Daftar', 'Nama', 'Komunitas', 'Email', 'No HP', 'Jumlah Tiket', 'Nama Tamu', 'Catatan', 'Status']
-        : ['No', 'Waktu Daftar', 'ID Karyawan', 'Nama', 'Bagian', 'Alamat', 'Email', 'No HP', 'Jumlah Tiket', 'Nama Tamu', 'Catatan', 'Status'];
+        : ['No', 'Waktu Daftar', 'ID Karyawan', 'Nama', 'Bagian', 'No HP', 'Jumlah Tiket', 'Nama Tamu', 'Status'];
       const lines = [head.map(csvCell).join(',')];
       rows.slice().reverse().forEach((r, i) => {
         const t = new Date(r.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
         lines.push((um
           ? [i + 1, t, r.name, r.dept === 'Umum' ? '' : r.dept, r.email, r.phone, r.ticket_count, r.guest_name, r.notes, r.status]
-          : [i + 1, t, r.nik, r.name, r.dept, r.address, r.email, r.phone, r.ticket_count, r.guest_name, r.notes, r.status]
+          : [i + 1, t, r.nik, r.name, r.dept, r.phone, r.ticket_count, r.guest_name, r.status]
         ).map(csvCell).join(','));
       });
       return csv(lines, 'peserta-imos.csv');

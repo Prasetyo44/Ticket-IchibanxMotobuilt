@@ -237,6 +237,7 @@ function renderConfig() {
     $('input[name=ticket_count][value="2"]').disabled = true;
     $('input[name=ticket_count][value="1"]').checked = true;
   }
+  if (cfg.mode !== 'umum') document.querySelectorAll('[data-f="email"],[data-f="address"],[data-f="notes"]').forEach(e => e.classList.add('hidden'));
   syncGuest();
 }
 
@@ -266,8 +267,7 @@ form.addEventListener('submit', async e => {
     ['name', body.name.trim().length < 2, 'Nama lengkap wajib diisi.'],
     ['dept', !umum && !body.dept, 'Pilih bagian.'],
     ['phone', !body.phone.trim(), 'Nomor HP wajib diisi.'],
-    ['email', !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email.trim()), 'Format email tidak valid.'],
-    ['address', !umum && body.address.trim().length < 5, 'Alamat wajib diisi.'],
+    ['email', umum && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email.trim()), 'Format email tidak valid.'],
     ['ticket_count', umum ? !(body.ticket_count >= 1) : ![1, 2].includes(body.ticket_count), 'Pilih jumlah tiket.'],
     ['guest_name', umum ? (body.ticket_count > 1 && body.guest_names.slice(0, body.ticket_count - 1).some(x => x.trim().length < 2)) : (body.ticket_count === 2 && body.guest_name.trim().length < 2), umum ? 'Isi nama lengkap semua tamu yang ikut.' : 'Nama tamu wajib diisi untuk 2 tiket.'],
     ['consent', !body.consent, 'Centang persetujuan terlebih dahulu.'],
