@@ -29,6 +29,7 @@ function fromB64(s) {
   for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
   return u;
 }
+const cleanML = (v, max = 1500) => String(v ?? '').replace(/\r/g, '').replace(/[\u0000-\u0009\u000b-\u001f\u007f]+/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, max);
 const clean = (v, max = 200) => String(v ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 function normalizePhone(v) {
   let d = String(v ?? '').replace(/[^\d+]/g, '').replace(/\+/g, '');
@@ -169,7 +170,7 @@ const STATUSES = ['soon', 'open', 'closed'];
 async function catalog(env) {
   const r = await env.DB.batch([
     env.DB.prepare('SELECT id, name FROM categories ORDER BY sort, id'),
-    env.DB.prepare('SELECT id, category_id, number, name, owner, info, active, (photo IS NOT NULL) AS has_photo FROM bikes ORDER BY CAST(number AS INTEGER), number, id'),
+    env.DB.prepare('SELECT id, category_id, number, name, owner, info, detail, active, (photo IS NOT NULL) AS has_photo FROM bikes ORDER BY CAST(number AS INTEGER), number, id'),
   ]);
   return r[0].results.map((c) => ({ ...c, bikes: r[1].results.filter((b) => b.category_id === c.id).map((b) => ({ ...b, has_photo: !!b.has_photo, active: !!b.active })) }));
 }
@@ -203,6 +204,10 @@ async function handle(req, env) {
   }
   if (p === '/admin' || p === '/admin.html' || p.startsWith('/admin/')) return new Response('Tidak ditemukan', { status: 404, headers: { 'X-Robots-Tag': 'noindex' } });
 
+  if (m === 'GET' && /^\/m\/[^/]{1,12}$/.test(p)) {
+    const res = await env.ASSETS.fetch(new Request(new URL('/', url), { headers: req.headers }));
+    return new Response(res.body, { status: res.status, headers: new Headers({ ...Object.fromEntries(res.headers), 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' }) });
+  }
   if (!p.startsWith('/api/')) return env.ASSETS.fetch(req);
 
   /* ---------------- Publik ---------------- */
@@ -333,9 +338,33 @@ async function handle(req, env) {
       return json({ ok: true });
     }
 
+    if (m === 'POST' && p === '/api/admin/import') {
+      const b = await readJson(req, 900_000);
+      const rows = (Array.isArray(b.rows) ? b.rows : []).slice(0, 500).map((r) => ({
+        category: clean(r.category, 60), number: clean(r.number, 10), name: clean(r.name, 80), owner: clean(r.owner, 80), info: clean(r.info, 200), detail: cleanML(r.detail, 1500),
+      })).filter((r) => r.category && r.number && r.name);
+      if (!rows.length) throw new HttpError(400, 'Tidak ada baris yang valid di file.');
+      const have = new Map((await env.DB.prepare('SELECT id, name FROM categories').all()).results.map((c) => [c.name.toLowerCase(), c.id]));
+      const missing = [...new Set(rows.map((r) => r.category))].filter((n) => !have.has(n.toLowerCase()));
+      let sort = (await env.DB.prepare('SELECT COALESCE(MAX(sort), 0) AS n FROM categories').first()).n;
+      if (missing.length) await env.DB.batch(missing.map((n) => env.DB.prepare('INSERT INTO categories(name, sort) VALUES(?, ?)').bind(n, ++sort)));
+      const cats = new Map((await env.DB.prepare('SELECT id, name FROM categories').all()).results.map((c) => [c.name.toLowerCase(), c.id]));
+      const bikes = new Map((await env.DB.prepare('SELECT id, number FROM bikes').all()).results.map((x) => [x.number.toLowerCase(), x.id]));
+      const now = new Date().toISOString();
+      let added = 0, updated = 0;
+      const stmts = rows.map((r) => {
+        const id = bikes.get(r.number.toLowerCase());
+        if (id) { updated++; return env.DB.prepare('UPDATE bikes SET category_id = ?, name = ?, owner = ?, info = ?, detail = ? WHERE id = ?').bind(cats.get(r.category.toLowerCase()), r.name, r.owner || null, r.info || null, r.detail || null, id); }
+        added++;
+        return env.DB.prepare('INSERT INTO bikes(category_id, number, name, owner, info, detail, active, created_at) VALUES(?,?,?,?,?,?,1,?)').bind(cats.get(r.category.toLowerCase()), r.number, r.name, r.owner || null, r.info || null, r.detail || null, now);
+      });
+      for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
+      return json({ ok: true, added, updated, categories: missing.length });
+    }
+
     const bikeBody = async () => {
       const b = await readJson(req, 1_300_000);
-      const d = { number: clean(b.number, 10), name: clean(b.name, 80), owner: clean(b.owner, 80), info: clean(b.info, 200), photo: null, mime: null };
+      const d = { number: clean(b.number, 10), name: clean(b.name, 80), owner: clean(b.owner, 80), info: clean(b.info, 200), detail: cleanML(b.detail, 1500), photo: null, mime: null };
       if (!d.number) throw new HttpError(400, 'Nomor peserta wajib diisi.');
       if (d.name.length < 2) throw new HttpError(400, 'Nama motor wajib diisi.');
       if (b.photo) {
@@ -353,15 +382,15 @@ async function handle(req, env) {
       const { b, d } = await bikeBody();
       const cat = await env.DB.prepare('SELECT id FROM categories WHERE id = ?').bind(Number(b.category_id)).first();
       if (!cat) throw new HttpError(400, 'Kategori tidak ditemukan.');
-      await env.DB.prepare('INSERT INTO bikes(category_id, number, name, owner, info, photo, photo_mime, active, created_at) VALUES(?,?,?,?,?,?,?,1,?)')
-        .bind(cat.id, d.number, d.name, d.owner || null, d.info || null, d.photo, d.mime, new Date().toISOString()).run();
+      await env.DB.prepare('INSERT INTO bikes(category_id, number, name, owner, info, detail, photo, photo_mime, active, created_at) VALUES(?,?,?,?,?,?,?,?,1,?)')
+        .bind(cat.id, d.number, d.name, d.owner || null, d.info || null, d.detail || null, d.photo, d.mime, new Date().toISOString()).run();
       return json({ ok: true });
     }
     if (m === 'PUT' && (g = p.match(/^\/api\/admin\/bikes\/(\d+)$/))) {
       const { b, d } = await bikeBody();
       const id = Number(g[1]);
-      await env.DB.prepare('UPDATE bikes SET number = ?, name = ?, owner = ?, info = ?, active = ? WHERE id = ?')
-        .bind(d.number, d.name, d.owner || null, d.info || null, b.active === false ? 0 : 1, id).run();
+      await env.DB.prepare('UPDATE bikes SET number = ?, name = ?, owner = ?, info = ?, detail = ?, active = ? WHERE id = ?')
+        .bind(d.number, d.name, d.owner || null, d.info || null, d.detail || null, b.active === false ? 0 : 1, id).run();
       if (d.photo) await env.DB.prepare('UPDATE bikes SET photo = ?, photo_mime = ? WHERE id = ?').bind(d.photo, d.mime, id).run();
       else if (b.remove_photo) await env.DB.prepare('UPDATE bikes SET photo = NULL, photo_mime = NULL WHERE id = ?').bind(id).run();
       return json({ ok: true });

@@ -50,6 +50,7 @@
         <div id="catList"></div>
       </div>
       <div class="card">
+        <div class="full" style="margin-bottom:16px;padding:12px;border:1px dashed var(--line, #ccc);border-radius:12px"><b>Impor banyak motor sekaligus</b><div class="sub2" style="margin:4px 0 8px">Pilih file <code>import_motor.json</code>. Nomor yang sudah ada diperbarui, nomor baru ditambahkan, kelas dibuat otomatis.</div><input type="file" id="impFile" accept=".json,application/json"> <button class="btn sm" id="impBtn" type="button">Impor</button></div>
         <h2 id="bikeFormTitle">Tambah motor</h2>
         <div class="formgrid">
           <div><label class="f">Kategori</label><select id="bCat"></select></div>
@@ -57,6 +58,7 @@
           <div><label class="f">Nama motor / builder</label><input type="text" id="bName"></div>
           <div><label class="f">Pemilik <span class="opt">(opsional)</span></label><input type="text" id="bOwner"></div>
           <div class="full"><label class="f">Keterangan singkat <span class="opt">(opsional)</span></label><input type="text" id="bInfo" maxlength="200"></div>
+          <div class="full"><label class="f">Konsep / spesifikasi <span class="opt">(opsional, tampil di halaman QR)</span></label><textarea id="bDetail" rows="4" maxlength="1500" style="width:100%;font:inherit;padding:10px;border-radius:10px"></textarea></div>
           <div class="full"><label class="f">Foto <span class="opt">(otomatis diperkecil)</span></label><input type="file" id="bPhoto" accept="image/*"><img id="bPrev" class="thumb hidden" style="margin-top:8px;width:120px;height:90px"></div>
         </div>
         <div style="margin-top:14px;display:flex;gap:8px"><button class="btn" id="bSave">Simpan motor</button><button class="btn ghost hidden" id="bCancel">Batal edit</button></div>
@@ -152,8 +154,14 @@ async function loadBikes() {
   $('#bikeRows').replaceChildren(...rows);
 }
 $('#catAdd').onclick = () => run(async () => { await api('/api/admin/categories', 'POST', { name: $('#catName').value }); $('#catName').value = ''; await loadBikes(); });
-function resetBikeForm() { editId = null; photoData = null; ['bNum', 'bName', 'bOwner', 'bInfo'].forEach(i => $('#' + i).value = ''); $('#bPhoto').value = ''; $('#bPrev').classList.add('hidden'); $('#bikeFormTitle').textContent = 'Tambah motor'; $('#bCancel').classList.add('hidden'); }
-function editBike(c, b) { editId = b.id; photoData = null; $('#bCat').value = c.id; $('#bNum').value = b.number; $('#bName').value = b.name; $('#bOwner').value = b.owner || ''; $('#bInfo').value = b.info || ''; $('#bikeFormTitle').textContent = `Edit motor #${b.number}`; $('#bCancel').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function resetBikeForm() { editId = null; photoData = null; ['bNum', 'bName', 'bOwner', 'bInfo', 'bDetail'].forEach(i => $('#' + i).value = ''); $('#bPhoto').value = ''; $('#bPrev').classList.add('hidden'); $('#bikeFormTitle').textContent = 'Tambah motor'; $('#bCancel').classList.add('hidden'); }
+function editBike(c, b) { editId = b.id; photoData = null; $('#bCat').value = c.id; $('#bNum').value = b.number; $('#bName').value = b.name; $('#bOwner').value = b.owner || ''; $('#bInfo').value = b.info || ''; $('#bDetail').value = b.detail || ''; $('#bikeFormTitle').textContent = `Edit motor #${b.number}`; $('#bCancel').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+$('#impBtn').onclick = () => run(async () => {
+  const f = $('#impFile').files[0]; if (!f) throw new Error('Pilih file import_motor.json dulu.');
+  let rows; try { rows = JSON.parse(await f.text()); } catch { throw new Error('File bukan JSON yang valid.'); }
+  const r = await api('/api/admin/import', 'POST', { rows });
+  $('#impFile').value = ''; toast(`Impor selesai: ${r.added} ditambah, ${r.updated} diperbarui, ${r.categories} kelas baru`); await loadBikes();
+});
 $('#bCancel').onclick = resetBikeForm;
 $('#bPhoto').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
@@ -163,7 +171,7 @@ $('#bPhoto').onchange = async e => {
   photoData = cv.toDataURL('image/jpeg', 0.8); $('#bPrev').src = photoData; $('#bPrev').classList.remove('hidden');
 };
 $('#bSave').onclick = () => run(async () => {
-  const body = { category_id: Number($('#bCat').value), number: $('#bNum').value, name: $('#bName').value, owner: $('#bOwner').value, info: $('#bInfo').value, photo: photoData };
+  const body = { category_id: Number($('#bCat').value), number: $('#bNum').value, name: $('#bName').value, owner: $('#bOwner').value, info: $('#bInfo').value, detail: $('#bDetail').value, photo: photoData };
   if (editId) await api('/api/admin/bikes/' + editId, 'PUT', { ...body, active: true }); else await api('/api/admin/bikes', 'POST', body);
   toast('Tersimpan'); resetBikeForm(); await loadBikes();
 });

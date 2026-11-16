@@ -114,6 +114,19 @@ input:focus{border-color:var(--red2);box-shadow:0 0 0 4px rgba(225,29,42,.2)}
 .rrow{display:grid;grid-template-columns:1fr 54px;gap:10px;align-items:center;margin:8px 0;font-size:14px}
 .rrow .bar{height:8px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden;margin-top:5px}.rrow .bar i{display:block;height:100%;background:linear-gradient(90deg,#9f0f18,var(--red2))}
 
+
+/* halaman motor (QR) */
+.mcard{background:var(--card);border:1px solid var(--line);border-radius:22px;overflow:hidden;margin-bottom:16px}
+.mcard .ph{aspect-ratio:16/10;background:#1b1b25 center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-family:var(--head);font-style:italic;font-weight:900;font-size:64px;color:rgba(255,255,255,.18)}
+.mcard .bd{padding:18px 18px 20px}
+.mcard .no{display:inline-block;background:var(--red);font-weight:800;border-radius:8px;padding:2px 10px;font-size:14px}
+.mcard .cl{color:var(--gold);font-size:12.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin:10px 0 2px}
+.mcard h2{font-family:var(--head);font-style:italic;text-transform:uppercase;font-size:30px;line-height:1.05;margin:0 0 4px}
+.mcard .ow{color:#d9d9e6;font-size:15px;margin:0 0 12px}
+.mcard .dt{white-space:pre-line;color:#c9c9d8;font-size:14.5px;border-top:1px solid var(--line);padding-top:12px;margin:0 0 16px}
+.finder{display:flex;gap:8px;margin:0 0 16px}.finder input{flex:1;min-width:0;font:inherit;font-size:16px;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:#101016;color:var(--tx)}
+.finder button{border:0;background:var(--red);color:#fff;font-weight:800;border-radius:12px;padding:0 18px}
+.scanned{background:rgba(255,210,63,.1);border:1px solid rgba(255,210,63,.35);border-radius:14px;padding:12px 14px;margin:0 0 14px;font-size:14.5px}
 body.voting .poster{display:none}body.voting .hero{padding:22px 0 18px}body.voting h1.title{font-size:clamp(34px,10vw,56px);margin-bottom:6px}body.voting .lead{display:none}
 footer{text-align:center;color:var(--mut);font-size:12.5px;padding:34px 16px 40px}
 </style>
@@ -190,6 +203,42 @@ async function load() {
   if (cfg.intro) $('#lead').textContent = cfg.intro;
   render();
 }
+
+let focusNo = (location.pathname.match(/^\/m\/([^/]+)/) || [])[1] ? decodeURIComponent(location.pathname.match(/^\/m\/([^/]+)/)[1]) : null;
+const normNo = (v) => String(v || '').replace(/^#/, '').trim().toLowerCase();
+function findBike(no) {
+  const n = normNo(no); if (!n) return null;
+  for (const c of cfg.categories) for (const b of c.bikes) if (normNo(b.number) === n) return { c, b };
+  return null;
+}
+function goMotor(no) {
+  focusNo = no ? String(no).replace(/^#/, '').trim() : null;
+  history.pushState(null, '', focusNo ? '/m/' + encodeURIComponent(focusNo) : '/');
+  render(); window.scrollTo({ top: 0 });
+}
+window.addEventListener('popstate', () => { const g = location.pathname.match(/^\/m\/([^/]+)/); focusNo = g ? decodeURIComponent(g[1]) : null; if (cfg) render(); });
+function finder() {
+  const inp = el('input', { type: 'text', inputMode: 'numeric', placeholder: 'Nomor motor (tertulis di papan), mis. 12', maxLength: 12 });
+  const go = () => inp.value.trim() && goMotor(inp.value);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+  return el('div', { className: 'finder' }, inp, el('button', { type: 'button', textContent: 'Buka', onclick: go }));
+}
+function motorCard(f, canVote) {
+  const { c, b } = f;
+  const ph = b.has_photo ? el('div', { className: 'ph' }) : null; if (ph) ph.style.backgroundImage = photo(b);
+  const bd = el('div', { className: 'bd' }, el('span', { className: 'no', textContent: '#' + b.number }), el('div', { className: 'cl', textContent: c.name }),
+    el('h2', { textContent: b.name }));
+  if (b.owner) bd.append(el('p', { className: 'ow', textContent: b.owner }));
+  const dt = [b.info, b.detail].filter(Boolean).join('\n\n');
+  if (dt) bd.append(el('p', { className: 'dt', textContent: dt }));
+  if (canVote) {
+    const picked = votes[c.id];
+    if (picked === b.id) bd.append(el('div', { className: 'banner ok', textContent: '✓ Ini pilihanmu di kelas ' + c.name }));
+    else if (picked) bd.append(el('div', { className: 'banner', textContent: 'Kamu sudah memilih motor lain di kelas ini. Satu suara per kelas.' }));
+    else bd.append(el('button', { className: 'cta', type: 'button', style: 'width:100%;justify-content:center', textContent: 'Pilih motor ini', onclick: () => confirmVote(c, b) }));
+  }
+  return el('div', { className: 'mcard' }, ...(ph ? [ph] : []), bd);
+}
 const cats = () => cfg.categories.filter(c => c.bikes.length);
 const photo = (b) => b.has_photo ? `url(/api/photo/${b.id})` : '';
 
@@ -225,6 +274,7 @@ function render() {
     $('#joinCard').classList.remove('hidden');
     $('#intro').textContent = 'Isi data singkat di bawah, lalu pilih motor favoritmu di setiap kategori. Satu suara per kategori dan pilihan tidak bisa diubah.';
     $('#codeBox').classList.toggle('hidden', !cfg.needs_code);
+    { const f = focusNo && findBike(focusNo); $('#scanNote')?.remove(); if (f) $('#joinCard h2').after(el('div', { className: 'scanned', id: 'scanNote', textContent: `Kamu scan motor #${f.b.number} ${f.b.name}. Isi data singkat dulu, lalu kamu bisa langsung memilihnya.` })); }
     cta.textContent = 'Mulai Voting ↓'; cta.href = '#joinCard';
     initTurnstile(); return;
   }
@@ -236,6 +286,14 @@ function render() {
 function renderVote() {
   const w = $('#voteWrap'); w.classList.remove('hidden'); w.replaceChildren();
   const cs = cats(); const done = cs.filter(c => votes[c.id]).length;
+  if (focusNo) {
+    const f = findBike(focusNo);
+    w.append(el('p', { className: 'hello', innerHTML: `Halo, <b></b> — <b>${done}/${cs.length}</b> kelas sudah dipilih.` })); w.querySelector('.hello b').textContent = me.name;
+    if (f) w.append(motorCard(f, true)); else w.append(el('div', { className: 'banner bad', textContent: `Motor nomor ${focusNo} tidak ditemukan. Cek nomor di papan motor.` }));
+    w.append(finder(), el('button', { className: 'cta ghost', type: 'button', style: 'width:100%;justify-content:center', textContent: 'Lihat semua motor', onclick: () => goMotor(null) }));
+    return;
+  }
+  w.append(finder());
   w.append(el('div', { className: 'prog' },
     el('div', { className: 'bar' }, el('i', { style: `width:${done / cs.length * 100}%` })),
     el('div', { className: 'chips' }, ...cs.map(c => el('a', { className: 'chip' + (votes[c.id] ? ' done' : ''), href: '#cat' + c.id, textContent: c.name })))));
