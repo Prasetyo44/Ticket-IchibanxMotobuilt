@@ -166,7 +166,7 @@ const DEFAULTS = {
   ].join('\n'),
 };
 
-const maxTickets = (s) => Math.min(10, Math.max(1, parseInt(s.max_tickets, 10) || 2));
+const maxTickets = (s) => 500; // mode umum: bebas, dibatasi sisa kuota saja (diisi tim internal)
 const parseSettings = (rows) => {
   const out = { ...DEFAULTS };
   for (const r of rows) if (r.key in DEFAULTS) out[r.key] = r.value;
@@ -282,7 +282,7 @@ async function register(env, d, req) {
   let rem = queue ? Infinity : pre[8].results[0].available;
   if (cap) rem = Math.min(rem, Math.max(0, cap - pre[7].results[0].tickets));
   if (rem <= 0) throw new HttpError(409, 'Kuota tiket sudah habis.');
-  if (umum && d.ticket_count > maxTickets(s)) throw new HttpError(400, `Maksimal ${maxTickets(s)} tiket per orang.`, 'ticket_count');
+  if (umum && d.ticket_count > maxTickets(s)) throw new HttpError(400, `Maksimal ${maxTickets(s)} tiket per pendaftaran.`, 'ticket_count');
   if (d.ticket_count > rem) throw new HttpError(409, `Sisa tiket hanya ${rem}. Kurangi jumlah tiket.`, 'ticket_count');
 
   // Satu batch = satu transaksi: pendaftaran, pengambilan QR dari stok, dan pembuatan tiket berhasil semua atau batal semua.
@@ -634,8 +634,8 @@ async function handle(req, env, ctx) {
     if (umum && !isValidEmail(d.email)) throw new HttpError(400, 'Format email tidak valid.', 'email');
     if (!isValidPhone(d.phone)) throw new HttpError(400, 'Nomor HP/WhatsApp tidak valid (contoh: 0812 3456 7890).', 'phone');
     if (umum) {
-      // Mode umum: jumlah tiket per orang bisa diatur admin (maks_tiket 1–10); satu nama tamu per tiket tambahan
-      if (!Number.isInteger(d.ticket_count) || d.ticket_count < 1 || d.ticket_count > 10) throw new HttpError(400, 'Jumlah tiket tidak valid.', 'ticket_count');
+      // Mode umum: jumlah tiket bebas (sesuai sisa kuota); satu nama tamu per tiket tambahan
+      if (!Number.isInteger(d.ticket_count) || d.ticket_count < 1 || d.ticket_count > 500) throw new HttpError(400, 'Jumlah tiket tidak valid.', 'ticket_count');
       const gn = (Array.isArray(b.guest_names) ? b.guest_names : [b.guest_name]).map((x) => clean(x, 80)).filter(Boolean);
       const need = d.ticket_count - 1;
       if (gn.length < need || gn.slice(0, need).some((x) => x.length < 2)) throw new HttpError(400, `Isi nama lengkap untuk ${need} tamu yang ikut.`, 'guest_name');

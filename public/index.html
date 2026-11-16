@@ -16,7 +16,6 @@
   <div class="wrap">
     <div class="eyebrow" id="eyebrow">Pendaftaran Tiket • Khusus Karyawan</div>
     <h1 id="title" class="moto-title">Ichiban x Motobuilt</h1>
-    <img class="poster-img hidden" id="posterImg" src="/img/poster.jpg" width="1080" height="1350" alt="Poster Ichiban Paint Motobuilt Modification Contest 2026 — Moto Built Fest 2026, 20–29 November 2026, ICE BSD City">
     <div class="chips" id="chips"></div>
     <div class="quota hidden" id="quota">
       <div class="bar"><i id="quotaBar" style="width:0"></i></div>
@@ -182,11 +181,11 @@ function buildGuests(n) {
 }
 
 function applyPublic() {
-  const max = Math.max(1, cfg.max_tickets || 2);
+  const max = 500;
   const lim = Math.max(1, cfg.remaining === null ? max : Math.min(max, cfg.remaining));
   const sel = document.createElement('select'); sel.id = 'tcSel'; sel.name = 'tcSel';
   for (let i = 1; i <= lim; i++) sel.append(new Option(i === 1 ? '1 tiket (hanya saya)' : `${i} tiket (saya + ${i - 1} tamu)`, i));
-  sel.value = String(Math.min(2, lim));
+  sel.value = '1';
   $('.seg').replaceWith(sel);
   $('#guest_name').classList.add('hidden');
   $('label[for=guest_name]').textContent = 'Nama tamu yang ikut';
@@ -194,7 +193,7 @@ function applyPublic() {
   document.querySelectorAll('[data-f="nik"],[data-f="dept"],[data-f="address"]').forEach(e => e.classList.add('hidden'));
   $('#communityBox').classList.remove('hidden');
   $('#eyebrow').textContent = 'Pendaftaran Tiket • Terbuka untuk Umum';
-  $('#intro').innerHTML = `Setiap orang mendapat <b>maksimal ${max} tiket</b>${max > 1 ? ` (untuk kamu dan ${max - 1} tamu)` : ''}. Tiket (QR Code) langsung muncul di website setelah form dikirim, tidak dikirim lewat WhatsApp atau email. Simpan link halaman tiketmu, atau buka lagi lewat tombol "Buka tiket saya" dengan email dan nomor HP.`;
+  $('#intro').innerHTML = `Jumlah tiket bebas sesuai <b>kuota yang tersedia</b>. Tiket (QR Code) langsung muncul di website setelah form dikirim, tidak dikirim lewat WhatsApp atau email. Simpan link halaman tiketmu, atau buka lagi lewat tombol "Buka tiket saya" dengan email dan nomor HP.`;
   $('#rWho').textContent = 'Email'; $('#rNik').type = 'email'; $('#rNik').removeAttribute('autocapitalize');
   $('#rSub').textContent = 'Masukkan email dan nomor HP yang kamu pakai saat mendaftar.';
   if (cfg.turnstile_site_key) {
@@ -207,7 +206,7 @@ function applyPublic() {
 }
 
 function renderConfig() {
-  if (cfg.mode === 'umum') { applyPublic(); $('#posterImg')?.classList.remove('hidden'); }
+  if (cfg.mode === 'umum') applyPublic();
   document.title = 'Tiket ' + cfg.event_title;
   $('#title').textContent = cfg.event_title;
   const chips = [];
