@@ -138,6 +138,7 @@ async function codeTag(env, code) {
   return (await hmac(env, 'gate:' + code)).slice(0, 16);
 }
 async function hasGate(env, req, s) {
+  return true; // kode akses dinonaktifkan: pendaftaran selalu terbuka
   if (!s.access_code) return true;
   const g = await verify(env, cookieOf(req, 'imos_gate'));
   return !!g && g.role === 'gate' && g.ac === (await codeTag(env, s.access_code));
@@ -805,7 +806,7 @@ async function handle(req, env, ctx) {
         event_title: clean(b.event_title, 120) || DEFAULTS.event_title,
         event_date: clean(b.event_date, 80), event_time: clean(b.event_time, 60), venue: clean(b.venue, 120),
         venue_address: clean(b.venue_address, 200), dresscode: clean(b.dresscode, 120), info: cleanMultiline(b.info, 400),
-        contact: clean(b.contact, 120), capacity: String(cap), max_tickets: String(mt), access_code: clean(b.access_code, 40), registration_deadline: dl,
+        contact: clean(b.contact, 120), capacity: String(cap), max_tickets: String(mt), access_code: '', registration_deadline: dl,
         registration_open: b.registration_open ? '1' : '0', prereg: b.prereg ? '1' : '0', departments: depts.join('\n'),
       };
       await env.DB.batch(
