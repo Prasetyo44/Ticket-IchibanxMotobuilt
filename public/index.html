@@ -177,23 +177,24 @@ function buildGuests(n) {
   const wrap = $('#guestList');
   const old = [...wrap.querySelectorAll('input')].map(i => i.value);
   wrap.replaceChildren(...Array.from({ length: Math.max(0, n - 1) }, (_, i) =>
-    Object.assign(document.createElement('input'), { type: 'text', className: 'gname', placeholder: 'Nama lengkap tamu ' + (i + 1), value: old[i] || '', style: 'margin-bottom:8px' })));
+    Object.assign(document.createElement('input'), { type: 'text', className: 'gname', placeholder: 'Nama lengkap pengunjung ' + (i + 1), value: old[i] || '', style: 'margin-bottom:8px' })));
 }
 
 function applyPublic() {
   const max = 500;
   const lim = Math.max(1, cfg.remaining === null ? max : Math.min(max, cfg.remaining));
   const sel = document.createElement('select'); sel.id = 'tcSel'; sel.name = 'tcSel';
-  for (let i = 1; i <= lim; i++) sel.append(new Option(i === 1 ? '1 tiket (hanya saya)' : `${i} tiket (saya + ${i - 1} tamu)`, i));
+  for (let i = 1; i <= lim; i++) sel.append(new Option(i === 1 ? '1 tiket' : `${i} tiket (1 perwakilan + ${i - 1} pengunjung)`, i));
   sel.value = '1';
   $('.seg').replaceWith(sel);
   $('#guest_name').classList.add('hidden');
-  $('label[for=guest_name]').textContent = 'Nama tamu yang ikut';
+  $('label[for=guest_name]').textContent = 'Nama pengunjung lainnya';
+  $('label[for=name]').textContent = 'Nama customer / perwakilan komunitas';
   const gl = document.createElement('div'); gl.id = 'guestList'; $('#guest_name').after(gl);
   document.querySelectorAll('[data-f="nik"],[data-f="dept"],[data-f="address"]').forEach(e => e.classList.add('hidden'));
   $('#communityBox').classList.remove('hidden');
   $('#eyebrow').textContent = 'Pendaftaran Tiket • Terbuka untuk Umum';
-  $('#intro').innerHTML = `Jumlah tiket bebas sesuai <b>kuota yang tersedia</b>. Tiket (QR Code) langsung muncul di website setelah form dikirim, tidak dikirim lewat WhatsApp atau email. Simpan link halaman tiketmu, atau buka lagi lewat tombol "Buka tiket saya" dengan email dan nomor HP.`;
+  $('#intro').innerHTML = `Form ini <b>khusus untuk customer / komunitas</b> dan diisi oleh tim internal atas nama mereka. Karyawan mendaftar di halaman khusus karyawan. Jumlah tiket bebas sesuai <b>kuota yang tersedia</b>. Tiket (QR Code) langsung muncul di website setelah form dikirim, tidak dikirim lewat WhatsApp atau email. Simpan link halaman tiketmu, atau buka lagi lewat tombol "Buka tiket saya" dengan email dan nomor HP.`;
   $('#rWho').textContent = 'Email'; $('#rNik').type = 'email'; $('#rNik').removeAttribute('autocapitalize');
   $('#rSub').textContent = 'Masukkan email dan nomor HP yang kamu pakai saat mendaftar.';
   if (cfg.turnstile_site_key) {
