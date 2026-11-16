@@ -40,6 +40,9 @@
       <div id="results"></div>
       <div class="card"><h2>Asal komunitas</h2><p class="sub">Pemilih yang sah, berdasarkan isian komunitas.</p><div class="bars" id="byCommunity"></div></div>
       <div class="card"><h2>Motor yang dipakai pengunjung</h2><p class="sub">Berdasarkan isian "motor yang kamu pakai".</p><div class="bars" id="byMotor"></div></div>
+      <div class="card"><h2>Jenis kelamin</h2><div class="bars" id="byGender"></div></div>
+      <div class="card"><h2>Kelompok umur</h2><div class="bars" id="byAge"></div></div>
+      <div class="card"><h2>Domisili</h2><div class="bars" id="byCity"></div></div>
       <div class="card hidden" id="susp"><h2>⚠️ Perlu dicek</h2><p class="sub">Banyak pendaftaran dari satu jaringan yang sama (bisa wajar bila wifi venue). Cek tab Pemilih; bila mencurigakan, batalkan suaranya.</p><div id="suspList"></div></div>
     </section>
 
@@ -130,7 +133,7 @@ async function loadSummary() {
     .map(([n, l, sm]) => el('div', { className: 'stat' }, el('b', { textContent: n }), el('span', { textContent: l }), el('small', { textContent: sm }))));
   $('#results').replaceChildren(...s.results.filter(c => c.bikes.length).map(c => el('div', { className: 'card' }, el('h2', { textContent: c.name }), el('p', { className: 'sub', textContent: `${c.total} suara` }),
     el('div', { className: 'bars' }, ...c.bikes.map((b, i) => el('div', { className: 'brow' }, el('span', { textContent: (i === 0 && b.votes ? '🏆 ' : '') + `#${b.number} ${b.name}` }), el('div', { className: 'bar' }, el('i', { style: `width:${b.pct}%` })), el('b', { textContent: `${b.votes} (${b.pct}%)` })))))));
-  bars($('#byCommunity'), s.byCommunity); bars($('#byMotor'), s.byMotor);
+  bars($('#byCommunity'), s.byCommunity); bars($('#byMotor'), s.byMotor); bars($('#byGender'), s.byGender); bars($('#byAge'), s.byAge); bars($('#byCity'), s.byCity);
   $('#susp').classList.toggle('hidden', !s.suspicious.length);
   $('#suspList').replaceChildren(...s.suspicious.map(x => el('div', { className: 'sub2', textContent: `Satu jaringan: ${x.c} pendaftar` })));
 }
@@ -182,7 +185,7 @@ async function loadVoters() {
   const rows = await api('/api/admin/voters?q=' + encodeURIComponent($('#q').value));
   $('#vCount').textContent = rows.length + ' pemilih';
   $('#vRows').replaceChildren(...rows.map(r => el('tr', { className: r.void ? 'cancelled' : '' },
-    el('td', { textContent: fmt(r.created_at) }), el('td', {}, el('b', { textContent: r.name }), el('div', { className: 'small', textContent: r.city || '' })),
+    el('td', { textContent: fmt(r.created_at) }), el('td', {}, el('b', { textContent: r.name }), el('div', { className: 'small', textContent: [r.age ? r.age + ' th' : '', r.gender === 'L' ? 'Laki-laki' : r.gender === 'P' ? 'Perempuan' : '', r.city].filter(Boolean).join(' • ') })),
     el('td', {}, el('div', { textContent: r.phone }), el('div', { className: 'small', textContent: r.email || '' })),
     el('td', { textContent: r.community || '—' }), el('td', { textContent: r.motor || '—' }),
     el('td', {}, el('b', { textContent: r.votes }), r.same_ip >= 6 ? el('div', { className: 'small', style: 'color:var(--warn)', textContent: `⚠ ${r.same_ip} dari jaringan sama` }) : ''),

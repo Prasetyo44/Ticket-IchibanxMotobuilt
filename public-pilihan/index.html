@@ -56,10 +56,10 @@ h1.title span{display:block;color:transparent;-webkit-text-stroke:2px var(--red2
 @media(max-width:560px){.grid{grid-template-columns:1fr}}
 label.f{display:block;font-size:12.5px;font-weight:700;letter-spacing:.03em;margin-bottom:6px;color:#d6d6e4}
 label.f .opt{font-weight:500;color:var(--mut)}
-input[type=text],input[type=email],input[type=tel]{width:100%;font:inherit;font-size:16px;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:#0d0d13;color:var(--tx);outline:none;transition:border-color .15s,box-shadow .15s}
+input[type=text],input[type=email],input[type=tel],select{width:100%;font:inherit;font-size:16px;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:#0d0d13;color:var(--tx);outline:none;transition:border-color .15s,box-shadow .15s}
 input::placeholder{color:#5d5d70}
-input:focus{border-color:var(--red2);box-shadow:0 0 0 4px rgba(225,29,42,.2)}
-.field.err input{border-color:#ff6b73;background:#1a0e10}.errmsg{color:#ff8f96;font-size:13px;margin-top:5px}.hint{color:var(--mut);font-size:12.5px;margin-top:5px}
+input:focus,select:focus{border-color:var(--red2);box-shadow:0 0 0 4px rgba(225,29,42,.2)}
+.field.err input,.field.err select{border-color:#ff6b73;background:#1a0e10}.errmsg{color:#ff8f96;font-size:13px;margin-top:5px}.hint{color:var(--mut);font-size:12.5px;margin-top:5px}
 .check{display:flex;gap:11px;align-items:flex-start;font-size:13.8px;color:#cfcfdd;cursor:pointer}
 .check input{margin-top:3px;width:19px;height:19px;accent-color:var(--red);flex:none}
 .banner{padding:12px 14px;border-radius:12px;font-size:14px;margin:12px 0}
@@ -164,12 +164,13 @@ footer{text-align:center;color:var(--mut);font-size:12.5px;padding:34px 16px 40p
         <div class="field full hidden" id="codeBox" data-f="code"><label class="f" for="code">Kode lokasi</label><input type="text" id="code" autocomplete="off" placeholder="Tanya panitia di lokasi acara"><div class="errmsg"></div></div>
         <div class="field" data-f="name"><label class="f" for="name">Nama lengkap</label><input type="text" id="name" autocomplete="name" required><div class="errmsg"></div></div>
         <div class="field" data-f="phone"><label class="f" for="phone">Nomor HP / WhatsApp</label><input type="tel" id="phone" inputmode="tel" autocomplete="tel" placeholder="0812xxxxxxxx" required><div class="errmsg"></div><div class="hint">Satu nomor hanya satu pemilih.</div></div>
-        <div class="field" data-f="email"><label class="f" for="email">Email <span class="opt">(opsional)</span></label><input type="email" id="email" autocomplete="email"><div class="errmsg"></div></div>
-        <div class="field" data-f="city"><label class="f" for="city">Kota <span class="opt">(opsional)</span></label><input type="text" id="city" autocomplete="address-level2"><div class="errmsg"></div></div>
-        <div class="field" data-f="community"><label class="f" for="community">Komunitas / klub <span class="opt">(opsional)</span></label><input type="text" id="community" maxlength="60" placeholder="Kosongkan jika individu"><div class="errmsg"></div></div>
-        <div class="field" data-f="motor"><label class="f" for="motor">Motor yang kamu pakai <span class="opt">(opsional)</span></label><input type="text" id="motor" maxlength="80" placeholder="mis. Honda CB150R, Vespa Sprint"><div class="errmsg"></div></div>
+        <div class="field" data-f="age"><label class="f" for="age">Umur</label><input type="text" id="age" inputmode="numeric" maxlength="2" placeholder="mis. 27" required><div class="errmsg"></div></div>
+        <div class="field" data-f="gender"><label class="f" for="gender">Jenis kelamin</label><select id="gender" required><option value="">Pilih…</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select><div class="errmsg"></div></div>
+        <div class="field" data-f="community"><label class="f" for="community">Komunitas</label><input type="text" id="community" maxlength="60" placeholder='Tulis "Tanpa komunitas" jika sendiri' required><div class="errmsg"></div></div>
+        <div class="field" data-f="city"><label class="f" for="city">Domisili</label><input type="text" id="city" autocomplete="address-level2" placeholder="Kota / kabupaten" required><div class="errmsg"></div></div>
+        <div class="field full" data-f="motor"><label class="f" for="motor">Motor yang digunakan</label><input type="text" id="motor" maxlength="80" placeholder="mis. Honda CB150R, Vespa Sprint" required><div class="errmsg"></div></div>
         <div class="full" id="tsBox"></div>
-        <div class="field full" data-f="consent"><label class="check"><input type="checkbox" id="consent"> <span>Saya setuju data saya (nama, nomor HP, dan isian di atas) dipakai penyelenggara <b>untuk menjalankan voting ini</b> dan menghitung suara yang sah.</span></label><div class="errmsg"></div></div>
+        <div class="field full" data-f="consent"><label class="check"><input type="checkbox" id="consent"> <span>Saya setuju data saya (nama, umur, jenis kelamin, nomor HP, komunitas, domisili, dan motor) dipakai penyelenggara <b>untuk menjalankan voting ini</b>, menghitung suara yang sah, dan <b>analisis profil pengunjung</b> oleh tim Ichiban Paint.</span></label><div class="errmsg"></div></div>
         <div class="full"><label class="check"><input type="checkbox" id="consentMkt"> <span>Saya <b>juga bersedia</b> dihubungi Ichiban Paint untuk info produk, promo, dan acara berikutnya. <i style="color:var(--mut)">(Opsional, tidak memengaruhi hak memilih.)</i></span></label></div>
       </div>
       <div id="formErr" class="banner bad hidden"></div>
@@ -370,13 +371,18 @@ function fieldErr(f, msg) {
 $('#form').addEventListener('submit', async e => {
   e.preventDefault(); clearErr();
   const body = {
-    code: $('#code').value, name: $('#name').value, phone: $('#phone').value, email: $('#email').value, city: $('#city').value,
+    code: $('#code').value, name: $('#name').value, phone: $('#phone').value, age: $('#age').value, gender: $('#gender').value, city: $('#city').value,
     community: $('#community').value, motor: $('#motor').value, consent: $('#consent').checked, consent_mkt: $('#consentMkt').checked,
     turnstile: document.querySelector('[name="cf-turnstile-response"]')?.value || '',
   };
   if (cfg.needs_code && !body.code.trim()) return fieldErr('code', 'Kode lokasi wajib diisi.');
   if (body.name.trim().length < 2) return fieldErr('name', 'Nama wajib diisi.');
   if (!body.phone.trim()) return fieldErr('phone', 'Nomor HP wajib diisi.');
+  if (!/^\d{1,2}$/.test(body.age.trim()) || +body.age < 5) return fieldErr('age', 'Umur wajib diisi (angka).');
+  if (!body.gender) return fieldErr('gender', 'Pilih jenis kelamin.');
+  if (body.community.trim().length < 2) return fieldErr('community', 'Komunitas wajib diisi. Tulis "Tanpa komunitas" jika sendiri.');
+  if (body.city.trim().length < 2) return fieldErr('city', 'Domisili wajib diisi.');
+  if (body.motor.trim().length < 2) return fieldErr('motor', 'Motor yang digunakan wajib diisi.');
   if (!body.consent) return fieldErr('consent', 'Centang persetujuan untuk ikut memilih.');
   const btn = $('#joinBtn'); btn.disabled = true;
   try { await api('/api/join', body); await load(); window.scrollTo({ top: $('#app').offsetTop - 60, behavior: 'smooth' }); }

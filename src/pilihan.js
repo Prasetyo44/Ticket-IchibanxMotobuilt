@@ -249,17 +249,23 @@ async function handle(req, env) {
     const d = {
       name: clean(b.name, 80), phone: normalizePhone(b.phone), email: clean(b.email, 120).toLowerCase(),
       community: clean(b.community, 60), motor: clean(b.motor, 80), city: clean(b.city, 60),
+      age: parseInt(b.age, 10), gender: b.gender === 'L' || b.gender === 'P' ? b.gender : '',
     };
     if (d.name.length < 2) throw new HttpError(400, 'Nama wajib diisi.', 'name');
     if (!isValidPhone(d.phone)) throw new HttpError(400, 'Nomor HP tidak valid. Contoh: 0812xxxxxxxx.', 'phone');
+    if (!Number.isInteger(d.age) || d.age < 5 || d.age > 90) throw new HttpError(400, 'Umur wajib diisi (angka).', 'age');
+    if (!d.gender) throw new HttpError(400, 'Pilih jenis kelamin.', 'gender');
+    if (d.community.length < 2) throw new HttpError(400, 'Komunitas wajib diisi. Tulis "Tanpa komunitas" kalau kamu datang sendiri.', 'community');
+    if (d.city.length < 2) throw new HttpError(400, 'Domisili wajib diisi.', 'city');
+    if (d.motor.length < 2) throw new HttpError(400, 'Motor yang digunakan wajib diisi.', 'motor');
     if (d.email && !isValidEmail(d.email)) throw new HttpError(400, 'Format email tidak valid.', 'email');
     if (!b.consent) throw new HttpError(400, 'Anda harus menyetujui penggunaan data untuk ikut memilih.', 'consent');
     await verifyTurnstile(env, b.turnstile, req);
     let id;
     try {
       const r = await env.DB.prepare(
-        `INSERT INTO voters(phone, name, email, community, motor, city, consent_mkt, ip, ua, created_at) VALUES(?,?,?,?,?,?,?,?,?,?)`
-      ).bind(d.phone, d.name, d.email || null, d.community || null, d.motor || null, d.city || null, b.consent_mkt ? 1 : 0,
+        `INSERT INTO voters(phone, name, email, age, gender, community, motor, city, consent_mkt, ip, ua, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`
+      ).bind(d.phone, d.name, d.email || null, d.age, d.gender, d.community || null, d.motor || null, d.city || null, b.consent_mkt ? 1 : 0,
         await ipHash(env, req), clean(req.headers.get('User-Agent'), 160), new Date().toISOString()).run();
       id = r.meta.last_row_id;
     } catch (e) {
@@ -314,11 +320,14 @@ async function handle(req, env) {
         env.DB.prepare('SELECT ip, COUNT(*) AS c FROM voters WHERE void = 0 GROUP BY ip HAVING c >= 6 ORDER BY c DESC LIMIT 10'),
         env.DB.prepare("SELECT COALESCE(NULLIF(community, ''), '(tanpa komunitas)') AS k, COUNT(*) AS c FROM voters WHERE void = 0 GROUP BY k ORDER BY c DESC LIMIT 15"),
         env.DB.prepare("SELECT COALESCE(NULLIF(motor, ''), '(tidak diisi)') AS k, COUNT(*) AS c FROM voters WHERE void = 0 GROUP BY k ORDER BY c DESC LIMIT 15"),
+        env.DB.prepare("SELECT CASE gender WHEN 'L' THEN 'Laki-laki' WHEN 'P' THEN 'Perempuan' ELSE '(tidak diisi)' END AS k, COUNT(*) AS c FROM voters WHERE void = 0 GROUP BY k ORDER BY c DESC"),
+        env.DB.prepare("SELECT CASE WHEN age IS NULL THEN '(tidak diisi)' WHEN age < 18 THEN '< 18' WHEN age <= 24 THEN '18-24' WHEN age <= 34 THEN '25-34' WHEN age <= 44 THEN '35-44' ELSE '45+' END AS k, COUNT(*) AS c FROM voters WHERE void = 0 GROUP BY k ORDER BY k"),
+        env.DB.prepare("SELECT COALESCE(NULLIF(city, ''), '(tidak diisi)') AS k, COUNT(*) AS c FROM voters WHERE void = 0 GROUP BY k ORDER BY c DESC LIMIT 15"),
       ]);
       const s = await getSettings(env);
       return json({
         status: s.status, voters: r[0].results[0], votes: r[1].results[0].c, suspicious: r[2].results,
-        byCommunity: r[3].results, byMotor: r[4].results, results: withResults(await catalog(env), await tallies(env)),
+        byCommunity: r[3].results, byMotor: r[4].results, byGender: r[5].results, byAge: r[6].results, byCity: r[7].results, results: withResults(await catalog(env), await tallies(env)),
       });
     }
 
@@ -404,7 +413,7 @@ async function handle(req, env) {
     if (m === 'GET' && p === '/api/admin/voters') {
       const q = '%' + (url.searchParams.get('q') || '').replace(/[%_]/g, '') + '%';
       const { results } = await env.DB.prepare(
-        `SELECT r.id, r.name, r.phone, r.email, r.community, r.motor, r.city, r.consent_mkt, r.void, r.created_at,
+        `SELECT r.id, r.name, r.phone, r.email, r.age, r.gender, r.community, r.motor, r.city, r.consent_mkt, r.void, r.created_at,
                 (SELECT COUNT(*) FROM votes v WHERE v.voter_id = r.id) AS votes,
                 (SELECT COUNT(*) FROM voters x WHERE x.ip = r.ip) AS same_ip
          FROM voters r
@@ -420,10 +429,10 @@ async function handle(req, env) {
       ]);
       const by = new Map();
       for (const x of vt) by.set(x.voter_id, [...(by.get(x.voter_id) || []), `${x.cat}: #${x.number} ${x.bike}`]);
-      const head = ['No', 'Waktu', 'Nama', 'No HP', 'Email', 'Komunitas', 'Motor yang dipakai', 'Kota', 'Boleh dihubungi info promo', 'Status', 'Pilihan'];
+      const head = ['No', 'Waktu', 'Nama', 'Umur', 'Jenis kelamin', 'No HP', 'Email', 'Komunitas', 'Motor yang digunakan', 'Domisili', 'Boleh dihubungi info promo', 'Status', 'Pilihan'];
       const lines = [head.map(csvCell).join(',')];
       vs.forEach((r, i) => lines.push([
-        i + 1, new Date(r.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }), r.name, r.phone, r.email, r.community, r.motor, r.city,
+        i + 1, new Date(r.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }), r.name, r.age, r.gender === 'L' ? 'Laki-laki' : r.gender === 'P' ? 'Perempuan' : '', r.phone, r.email, r.community, r.motor, r.city,
         r.consent_mkt ? 'Ya' : 'Tidak', r.void ? 'Dibatalkan' : 'Sah', (by.get(r.id) || []).join(' | '),
       ].map(csvCell).join(',')));
       return csv(lines, 'pemilih-people-choice.csv');
