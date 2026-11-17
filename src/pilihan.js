@@ -358,17 +358,30 @@ async function handle(req, env) {
       let sort = (await env.DB.prepare('SELECT COALESCE(MAX(sort), 0) AS n FROM categories').first()).n;
       if (missing.length) await env.DB.batch(missing.map((n) => env.DB.prepare('INSERT INTO categories(name, sort) VALUES(?, ?)').bind(n, ++sort)));
       const cats = new Map((await env.DB.prepare('SELECT id, name FROM categories').all()).results.map((c) => [c.name.toLowerCase(), c.id]));
-      const bikes = new Map((await env.DB.prepare('SELECT id, number FROM bikes').all()).results.map((x) => [x.number.toLowerCase(), x.id]));
+      const have2 = (await env.DB.prepare('SELECT id, number, category_id FROM bikes').all()).results;
+      const bikes = new Map(have2.map((x) => [x.number.toLowerCase() + '|' + x.category_id, x.id]));
       const now = new Date().toISOString();
-      let added = 0, updated = 0;
+      let added = 0, updated = 0, removed = 0;
+      const keep = new Set();
       const stmts = rows.map((r) => {
-        const id = bikes.get(r.number.toLowerCase());
-        if (id) { updated++; return env.DB.prepare('UPDATE bikes SET category_id = ?, name = ?, owner = ?, info = ?, detail = ? WHERE id = ?').bind(cats.get(r.category.toLowerCase()), r.name, r.owner || null, r.info || null, r.detail || null, id); }
+        const cid = cats.get(r.category.toLowerCase());
+        const key = r.number.toLowerCase() + '|' + cid;
+        const id = bikes.get(key);
+        if (id) { keep.add(id); updated++; return env.DB.prepare('UPDATE bikes SET name = ?, owner = ?, info = ?, detail = ?, active = 1 WHERE id = ?').bind(r.name, r.owner || null, r.info || null, r.detail || null, id); }
         added++;
-        return env.DB.prepare('INSERT INTO bikes(category_id, number, name, owner, info, detail, active, created_at) VALUES(?,?,?,?,?,?,1,?)').bind(cats.get(r.category.toLowerCase()), r.number, r.name, r.owner || null, r.info || null, r.detail || null, now);
+        return env.DB.prepare('INSERT INTO bikes(category_id, number, name, owner, info, detail, active, created_at) VALUES(?,?,?,?,?,?,1,?)').bind(cid, r.number, r.name, r.owner || null, r.info || null, r.detail || null, now);
       });
+      if (b.replace) {
+        // Sinkronkan: motor yang tidak ada lagi di file dihapus (atau dinonaktifkan kalau sudah punya suara).
+        for (const x of have2) {
+          if (keep.has(x.id)) continue;
+          removed++;
+          stmts.push(env.DB.prepare('DELETE FROM bikes WHERE id = ? AND NOT EXISTS (SELECT 1 FROM votes WHERE bike_id = ?)').bind(x.id, x.id));
+          stmts.push(env.DB.prepare('UPDATE bikes SET active = 0 WHERE id = ?').bind(x.id));
+        }
+      }
       for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
-      return json({ ok: true, added, updated, categories: missing.length });
+      return json({ ok: true, added, updated, removed, categories: missing.length });
     }
 
     const bikeBody = async () => {

@@ -209,8 +209,9 @@ let focusNo = (location.pathname.match(/^\/m\/([^/]+)/) || [])[1] ? decodeURICom
 const normNo = (v) => String(v || '').replace(/^#/, '').trim().toLowerCase();
 function findBike(no) {
   const n = normNo(no); if (!n) return null;
-  for (const c of cfg.categories) for (const b of c.bikes) if (normNo(b.number) === n) return { c, b };
-  return null;
+  const list = [];
+  for (const c of cfg.categories) for (const b of c.bikes) if (normNo(b.number) === n) list.push({ c, b });
+  return list.length ? list : null;
 }
 function goMotor(no) {
   focusNo = no ? String(no).replace(/^#/, '').trim() : null;
@@ -224,19 +225,24 @@ function finder() {
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
   return el('div', { className: 'finder' }, inp, el('button', { type: 'button', textContent: 'Buka', onclick: go }));
 }
-function motorCard(f, canVote) {
-  const { c, b } = f;
+function motorCard(list, canVote) {
+  const b = list[0].b;
   const ph = b.has_photo ? el('div', { className: 'ph' }) : null; if (ph) ph.style.backgroundImage = photo(b);
-  const bd = el('div', { className: 'bd' }, el('span', { className: 'no', textContent: '#' + b.number }), el('div', { className: 'cl', textContent: c.name }),
-    el('h2', { textContent: b.name }));
+  const bd = el('div', { className: 'bd' }, el('span', { className: 'no', textContent: '#' + b.number }),
+    el('div', { className: 'cl', textContent: list.length > 1 ? 'Ikut ' + list.length + ' kelas' : list[0].c.name }), el('h2', { textContent: b.name }));
   if (b.owner) bd.append(el('p', { className: 'ow', textContent: b.owner }));
   const dt = [b.info, b.detail].filter(Boolean).join('\n\n');
   if (dt) bd.append(el('p', { className: 'dt', textContent: dt }));
-  if (canVote) {
-    const picked = votes[c.id];
-    if (picked === b.id) bd.append(el('div', { className: 'banner ok', textContent: '✓ Ini pilihanmu di kelas ' + c.name }));
-    else if (picked) bd.append(el('div', { className: 'banner', textContent: 'Kamu sudah memilih motor lain di kelas ini. Satu suara per kelas.' }));
-    else bd.append(el('button', { className: 'cta', type: 'button', style: 'width:100%;justify-content:center', textContent: 'Pilih motor ini', onclick: () => confirmVote(c, b) }));
+  for (const { c, b: bk } of list) {
+    const row = el('div', { style: 'margin-top:10px' });
+    if (list.length > 1) row.append(el('div', { className: 'cl', textContent: c.name }));
+    if (canVote) {
+      const picked = votes[c.id];
+      if (picked === bk.id) row.append(el('div', { className: 'banner ok', textContent: '✓ Ini pilihanmu di kelas ' + c.name }));
+      else if (picked) row.append(el('div', { className: 'banner', textContent: 'Kamu sudah memilih motor lain di kelas ini. Satu suara per kelas.' }));
+      else row.append(el('button', { className: 'cta', type: 'button', style: 'width:100%;justify-content:center', textContent: list.length > 1 ? 'Pilih di kelas ini' : 'Pilih motor ini', onclick: () => confirmVote(c, bk) }));
+    }
+    bd.append(row);
   }
   return el('div', { className: 'mcard' }, ...(ph ? [ph] : []), bd);
 }
@@ -262,6 +268,7 @@ function render() {
   }
   if (cfg.status === 'soon') {
     st.append(el('h2', { textContent: 'Voting belum dibuka' }), el('p', { className: 'sub', style: 'margin:0', textContent: 'Tunggu pengumuman dari panitia di lokasi acara. Halaman ini akan aktif otomatis saat voting dimulai.' }));
+    { const f = focusNo && findBike(focusNo); if (f) st.append(motorCard(f, false)); }
     cta.classList.add('hidden'); return;
   }
   if (cfg.status === 'closed') {
@@ -275,7 +282,7 @@ function render() {
     $('#joinCard').classList.remove('hidden');
     $('#intro').textContent = 'Isi data singkat di bawah, lalu pilih motor favoritmu di setiap kategori. Satu suara per kategori dan pilihan tidak bisa diubah.';
     $('#codeBox').classList.toggle('hidden', !cfg.needs_code);
-    { const f = focusNo && findBike(focusNo); $('#scanNote')?.remove(); if (f) $('#joinCard h2').after(el('div', { className: 'scanned', id: 'scanNote', textContent: `Kamu scan motor #${f.b.number} ${f.b.name}. Isi data singkat dulu, lalu kamu bisa langsung memilihnya.` })); }
+    { const f = focusNo && findBike(focusNo); $('#scanNote')?.remove(); if (f) $('#joinCard h2').after(el('div', { className: 'scanned', id: 'scanNote', textContent: `Kamu scan motor #${f[0].b.number} ${f[0].b.name}. Isi data singkat dulu, lalu kamu bisa langsung memilihnya.` })); }
     cta.textContent = 'Mulai Voting ↓'; cta.href = '#joinCard';
     initTurnstile(); return;
   }

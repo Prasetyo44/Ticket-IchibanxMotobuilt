@@ -53,7 +53,7 @@
         <div id="catList"></div>
       </div>
       <div class="card">
-        <div class="full" style="margin-bottom:16px;padding:12px;border:1px dashed var(--line, #ccc);border-radius:12px"><b>Impor banyak motor sekaligus</b><div class="sub2" style="margin:4px 0 8px">Pilih file <code>import_motor.json</code>. Nomor yang sudah ada diperbarui, nomor baru ditambahkan, kelas dibuat otomatis.</div><input type="file" id="impFile" accept=".json,application/json"> <button class="btn sm" id="impBtn" type="button">Impor</button></div>
+        <div class="full" style="margin-bottom:16px;padding:12px;border:1px dashed var(--line, #ccc);border-radius:12px"><b>Impor banyak motor sekaligus</b><div class="sub2" style="margin:4px 0 8px">Pilih file <code>import_motor.json</code>. Motor yang sama (nomor + kelas) diperbarui, yang baru ditambahkan, kelas dibuat otomatis. Motor yang tidak ada di file dihapus (dinonaktifkan kalau sudah punya suara).</div><input type="file" id="impFile" accept=".json,application/json"> <button class="btn sm" id="impBtn" type="button">Impor</button></div>
         <h2 id="bikeFormTitle">Tambah motor</h2>
         <div class="formgrid">
           <div><label class="f">Kategori</label><select id="bCat"></select></div>
@@ -162,8 +162,8 @@ function editBike(c, b) { editId = b.id; photoData = null; $('#bCat').value = c.
 $('#impBtn').onclick = () => run(async () => {
   const f = $('#impFile').files[0]; if (!f) throw new Error('Pilih file import_motor.json dulu.');
   let rows; try { rows = JSON.parse(await f.text()); } catch { throw new Error('File bukan JSON yang valid.'); }
-  const r = await api('/api/admin/import', 'POST', { rows });
-  $('#impFile').value = ''; toast(`Impor selesai: ${r.added} ditambah, ${r.updated} diperbarui, ${r.categories} kelas baru`); await loadBikes();
+  const r = await api('/api/admin/import', 'POST', { rows, replace: true });
+  $('#impFile').value = ''; toast(`Impor selesai: ${r.added} ditambah, ${r.updated} diperbarui, ${r.removed} dihapus, ${r.categories} kelas baru`); await loadBikes();
 });
 $('#bCancel').onclick = resetBikeForm;
 $('#bPhoto').onchange = async e => {

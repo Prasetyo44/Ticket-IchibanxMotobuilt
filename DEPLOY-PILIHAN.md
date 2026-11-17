@@ -18,3 +18,7 @@ Pembatasan curang: satu nomor HP = satu pemilih, satu perangkat (cookie) = satu 
    `python3 tools/qr_sheet.py import_motor.json https://DOMAIN QR_Motor.pdf 15`
 3. Pastikan DOMAIN sudah final sebelum dicetak. QR yang sudah tercetak tidak bisa diubah arahnya.
 4. Pengunjung juga bisa mengetik nomor motor di halaman utama kalau QR rusak.
+
+## Specboard ber-QR
+
+`python3 tools/specboard_qr.py Specboard.pdf https://pilihan.ichiban.ai.id Specboard_QR.pdf` menempel QR ke kotak "TEMPEL STICKER QR" di setiap halaman. Satu motor bisa ikut beberapa kelas: halaman motornya menampilkan tombol pilih untuk tiap kelas. Impor lewat admin menyinkronkan data (motor yang tidak ada di file dihapus).

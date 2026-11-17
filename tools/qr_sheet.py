@@ -14,6 +14,11 @@ from reportlab.pdfbase.ttfonts import TTFont
 src, base, out = sys.argv[1], sys.argv[2].rstrip('/'), sys.argv[3]
 spare = int(sys.argv[4]) if len(sys.argv) > 4 else 15
 rows = json.load(open(src, encoding='utf-8'))
+merged = {}
+for r in rows:
+    m = merged.setdefault(r['number'], dict(r, category=[]))
+    if r['category'] and r['category'] not in m['category']: m['category'].append(r['category'])
+rows = [dict(m, category=' / '.join(m['category'])) for m in merged.values()]
 def key(r):
     n = r['number']; return (0, int(n)) if n.isdigit() else (1, n)
 rows.sort(key=key)
