@@ -43,7 +43,7 @@
       <div class="card"><h2>Jenis kelamin</h2><div class="bars" id="byGender"></div></div>
       <div class="card"><h2>Kelompok umur</h2><div class="bars" id="byAge"></div></div>
       <div class="card"><h2>Domisili</h2><div class="bars" id="byCity"></div></div>
-      <div class="card hidden" id="susp"><h2>⚠️ Perlu dicek</h2><p class="sub">Banyak pendaftaran dari satu jaringan yang sama (bisa wajar bila wifi venue). Cek tab Pemilih; bila mencurigakan, batalkan suaranya.</p><div id="suspList"></div></div>
+      <div class="card" id="susp"><h2>⚠️ Pemeriksaan pola mencurigakan</h2><p class="sub">Menandai pemilih yang polanya tidak wajar: satu jaringan atau perangkat, nomor HP berurutan, nama kembar, pendaftaran beruntun, dan memilih terlalu cepat. Penanda bukan bukti: wifi venue dipakai banyak orang. Periksa dulu, lalu batalkan yang meragukan.</p><button class="btn" id="suspBtn" type="button">Periksa sekarang</button><div id="suspOut" style="margin-top:14px"></div></div>
     </section>
 
     <section id="t-bikes" class="hidden">
@@ -134,9 +134,21 @@ async function loadSummary() {
   $('#results').replaceChildren(...s.results.filter(c => c.bikes.length).map(c => el('div', { className: 'card' }, el('h2', { textContent: c.name }), el('p', { className: 'sub', textContent: `${c.total} suara` }),
     el('div', { className: 'bars' }, ...c.bikes.map((b, i) => el('div', { className: 'brow' }, el('span', { textContent: (i === 0 && b.votes ? '🏆 ' : '') + `#${b.number} ${b.name}` }), el('div', { className: 'bar' }, el('i', { style: `width:${b.pct}%` })), el('b', { textContent: `${b.votes} (${b.pct}%)` })))))));
   bars($('#byCommunity'), s.byCommunity); bars($('#byMotor'), s.byMotor); bars($('#byGender'), s.byGender); bars($('#byAge'), s.byAge); bars($('#byCity'), s.byCity);
-  $('#susp').classList.toggle('hidden', !s.suspicious.length);
-  $('#suspList').replaceChildren(...s.suspicious.map(x => el('div', { className: 'sub2', textContent: `Satu jaringan: ${x.c} pendaftar` })));
 }
+$('#suspBtn').onclick = () => run(async () => {
+  const d = await api('/api/admin/suspicious'); const o = $('#suspOut');
+  if (!d.voters.length) { o.replaceChildren(el('p', { className: 'sub', textContent: `Dari ${d.total} pemilih sah, tidak ada pola mencurigakan.` })); return; }
+  const rows = d.voters.map(v => el('tr', {},
+    el('td', {}, el('b', { textContent: v.name }), el('div', { className: 'small', textContent: [v.phone, v.community, v.motor].filter(Boolean).join(' • ') })),
+    el('td', {}, ...v.flags.map(f => el('div', { className: 'small', textContent: '• ' + f }))),
+    el('td', { textContent: v.votes }),
+    el('td', {}, el('button', { className: 'btn sm danger', type: 'button', textContent: 'Batalkan', onclick: () => confirm('Batalkan suara ' + v.name + '?') && run(async () => { await api(`/api/admin/voters/${v.id}/void`, 'POST', { void: true }); toast('Dibatalkan'); await loadSummary(); $('#suspBtn').click(); }) }))));
+  const kids = [el('p', { className: 'sub', textContent: `${d.flagged} dari ${d.total} pemilih sah ditandai (tampil maksimal 300).` }),
+    el('div', { style: 'overflow-x:auto' }, el('table', {}, el('thead', {}, el('tr', {}, ...['Pemilih', 'Alasan', 'Suara', ''].map(h => el('th', { textContent: h })))), el('tbody', {}, ...rows)))];
+  if (d.bikes.length) kids.push(el('h3', { textContent: 'Motor dengan suara dari pemilih bertanda', style: 'margin:18px 0 6px' }), ...d.bikes.map(b => el('div', { className: 'sub2', textContent: `#${b.number} ${b.name} (${b.category}): ${b.flagged} dari ${b.total} suara berasal dari pemilih bertanda` })));
+  o.replaceChildren(...kids);
+});
+
 
 /* motor & kategori */
 let CAT = [], editId = null, photoData = null;

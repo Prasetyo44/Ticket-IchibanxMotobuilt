@@ -450,6 +450,53 @@ async function handle(req, env) {
       ].map(csvCell).join(',')));
       return csv(lines, 'pemilih-people-choice.csv');
     }
+    if (m === 'GET' && p === '/api/admin/suspicious') {
+      const vs = (await env.DB.prepare('SELECT id, name, phone, age, gender, community, motor, city, ip, ua, created_at FROM voters WHERE void = 0 ORDER BY created_at').all()).results;
+      const vt = (await env.DB.prepare('SELECT v.voter_id, v.bike_id, v.created_at, b.number, b.name AS bname, c.name AS cname FROM votes v JOIN bikes b ON b.id = v.bike_id JOIN categories c ON c.id = v.category_id').all()).results;
+      const votesBy = new Map();
+      for (const x of vt) { if (!votesBy.has(x.voter_id)) votesBy.set(x.voter_id, []); votesBy.get(x.voter_id).push(x); }
+      const flags = new Map(vs.map((v) => [v.id, []]));
+      const add = (v, t) => { const f = flags.get(v.id); if (!f.includes(t)) f.push(t); };
+      const group = (keyFn, min, label) => {
+        const g = new Map();
+        for (const v of vs) { const k = keyFn(v); if (k) { if (!g.has(k)) g.set(k, []); g.get(k).push(v); } }
+        for (const arr of g.values()) if (arr.length >= min) for (const v of arr) add(v, label(arr.length));
+      };
+      group((v) => v.ip, 6, (n) => `${n} pendaftar dari jaringan yang sama`);
+      group((v) => v.ip && v.ua ? v.ip + '|' + v.ua : '', 3, (n) => `${n} pendaftar dari perangkat/jaringan yang sama`);
+      group((v) => { const d = String(v.phone || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(0, -2) : ''; }, 3, (n) => `${n} nomor HP berurutan/mirip`);
+      group((v) => String(v.name || '').toLowerCase().replace(/[^a-z]/g, ''), 2, (n) => `${n} pendaftar bernama sama`);
+      group((v) => [v.community, v.motor, v.city, v.age, v.gender].map((x) => String(x ?? '').toLowerCase().trim()).join('|'), 3, (n) => `${n} pendaftar dengan data persis sama`);
+      // pendaftaran beruntun: 3+ dalam 10 menit dari satu jaringan
+      const byIp = new Map();
+      for (const v of vs) if (v.ip) { if (!byIp.has(v.ip)) byIp.set(v.ip, []); byIp.get(v.ip).push(v); }
+      for (const arr of byIp.values()) {
+        for (let i = 0; i + 2 < arr.length; i++) {
+          if (Date.parse(arr[i + 2].created_at) - Date.parse(arr[i].created_at) <= 10 * 60 * 1000) { for (let j = i; j <= i + 2; j++) add(arr[j], 'mendaftar beruntun (3 dalam 10 menit) dari satu jaringan'); }
+        }
+      }
+      for (const v of vs) {
+        const nm = String(v.name || '').toLowerCase().replace(/[^a-z]/g, '');
+        if (nm.length <= 2 || /^(.)\1+$/.test(nm) || !/[aeiou]/.test(nm) || /(asdf|qwer|test|coba|xxxx|aaaa|zzzz)/.test(nm)) add(v, 'nama tidak wajar');
+        const mine = votesBy.get(v.id) || [];
+        if (mine.length && mine.every((x) => Date.parse(x.created_at) - Date.parse(v.created_at) < 3000)) add(v, 'memilih kurang dari 3 detik setelah mendaftar');
+      }
+      const out = vs.filter((v) => flags.get(v.id).length).map((v) => ({
+        id: v.id, name: v.name, phone: v.phone, age: v.age, community: v.community, motor: v.motor, city: v.city, created_at: v.created_at,
+        net: String(v.ip || '').slice(0, 6), flags: flags.get(v.id), votes: (votesBy.get(v.id) || []).length,
+      })).sort((a, b) => b.flags.length - a.flags.length || b.votes - a.votes).slice(0, 300);
+      // motor yang menerima banyak suara dari pemilih mencurigakan
+      const flagged = new Set(vs.filter((v) => flags.get(v.id).length).map((v) => v.id));
+      const bm = new Map();
+      for (const x of vt) {
+        if (!votesBy.has(x.voter_id) || !flags.has(x.voter_id)) continue;
+        const e = bm.get(x.bike_id) || { number: x.number, name: x.bname, category: x.cname, total: 0, flagged: 0 };
+        e.total++; if (flagged.has(x.voter_id)) e.flagged++; bm.set(x.bike_id, e);
+      }
+      const bikes = [...bm.values()].filter((b) => b.flagged >= 2).sort((a, b) => b.flagged / b.total - a.flagged / a.total || b.flagged - a.flagged).slice(0, 25);
+      return json({ voters: out, bikes, total: vs.length, flagged: flagged.size });
+    }
+
     if (m === 'POST' && (g = p.match(/^\/api\/admin\/voters\/(\d+)\/void$/))) {
       const b = await readJson(req, 500);
       await env.DB.prepare('UPDATE voters SET void = ? WHERE id = ?').bind(b.void ? 1 : 0, Number(g[1])).run();
