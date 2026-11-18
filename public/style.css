@@ -325,3 +325,10 @@ body.moto .copyright { color: rgba(255,255,255,.72); }
 
 body:not(.umum) .umumonly{display:none}
 body.umum .kar{display:none !important}
+
+/* Tombol "Buka tiket saya" — besar & jelas */
+footer.pg.pg-open { padding: 4px 16px 40px; }
+footer.pg.pg-open .pg-q { font-size: 17px; font-weight: 600; color: #d6d6e2; margin-bottom: 12px; }
+.open-ticket { display: block; width: 100%; max-width: 520px; margin: 0 auto; padding: 18px 20px; font: inherit; font-size: 19px; font-weight: 700; color: #fff; background: transparent; border: 2px solid var(--brand); border-radius: 14px; cursor: pointer; }
+.open-ticket:hover, .open-ticket:focus-visible { background: var(--brand); }
+@media (max-width: 480px) { .open-ticket { font-size: 18px; padding: 16px; } }
