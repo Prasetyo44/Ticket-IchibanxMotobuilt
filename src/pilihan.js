@@ -189,6 +189,44 @@ function withResults(cats, tally) {
   });
 }
 
+
+/* ----------------------------------- Undi pemenang ----------------------------------- */
+
+let drawReady = false;
+async function ensureDrawTables(env) {
+  if (drawReady) return;
+  await env.DB.batch([
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS draws (id INTEGER PRIMARY KEY AUTOINCREMENT, prize TEXT NOT NULL, scope TEXT NOT NULL, scope_label TEXT, pool_size INTEGER NOT NULL, created_at TEXT NOT NULL)'),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS draw_winners (id INTEGER PRIMARY KEY AUTOINCREMENT, draw_id INTEGER NOT NULL, rank INTEGER NOT NULL, voter_id INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'menunggu')"),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS ix_dw_draw ON draw_winners(draw_id)'),
+  ]);
+  drawReady = true;
+}
+function randInt(n) { // acak seragam 0..n-1 (tanpa bias)
+  const lim = Math.floor(0x100000000 / n) * n, a = new Uint32Array(1);
+  do { crypto.getRandomValues(a); } while (a[0] >= lim);
+  return a[0] % n;
+}
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) { const j = randInt(i + 1); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+  return arr;
+}
+/* Pemenang motor per kelas + info seri */
+function classWinners(results) {
+  return results.filter((c) => c.bikes.length).map((c) => {
+    const top = c.bikes[0] && c.bikes[0].votes ? c.bikes[0].votes : 0;
+    const leaders = top ? c.bikes.filter((b) => b.votes === top) : [];
+    return { id: c.id, name: c.name, total: c.total, top, tie: leaders.length > 1, leaders: leaders.map((b) => ({ id: b.id, number: b.number, name: b.name, owner: b.owner, votes: b.votes })), ranking: c.bikes.slice(0, 5).map((b) => ({ id: b.id, number: b.number, name: b.name, votes: b.votes })) };
+  });
+}
+async function drawList(env) {
+  const { results: ds } = await env.DB.prepare('SELECT * FROM draws ORDER BY id DESC LIMIT 100').all();
+  const { results: ws } = await env.DB.prepare(
+    `SELECT w.id, w.draw_id, w.rank, w.status, r.id AS voter_id, r.name, r.phone, r.community, r.city, r.void FROM draw_winners w JOIN voters r ON r.id = w.voter_id ORDER BY w.draw_id DESC, w.rank`
+  ).all();
+  return ds.map((d) => ({ ...d, winners: ws.filter((w) => w.draw_id === d.id) }));
+}
+
 /* ----------------------------------- Router ----------------------------------- */
 
 async function handle(req, env) {
@@ -500,6 +538,55 @@ async function handle(req, env) {
     if (m === 'POST' && (g = p.match(/^\/api\/admin\/voters\/(\d+)\/void$/))) {
       const b = await readJson(req, 500);
       await env.DB.prepare('UPDATE voters SET void = ? WHERE id = ?').bind(b.void ? 1 : 0, Number(g[1])).run();
+      return json({ ok: true });
+    }
+
+
+    /* ---- Undi pemenang ---- */
+    if (m === 'GET' && p === '/api/admin/draw') {
+      await ensureDrawTables(env);
+      const st = await getSettings(env);
+      const res = withResults(await catalog(env), await tallies(env));
+      const pool = await env.DB.prepare('SELECT COUNT(DISTINCT r.id) AS c FROM voters r JOIN votes v ON v.voter_id = r.id WHERE r.void = 0').first();
+      return json({ status: st.status, pool: pool.c, classes: classWinners(res), draws: await drawList(env) });
+    }
+    if (m === 'POST' && p === '/api/admin/draw') {
+      await ensureDrawTables(env);
+      const b = await readJson(req, 2000);
+      const st = await getSettings(env);
+      if (st.status === 'open' && !b.force) throw new HttpError(409, 'Voting masih dibuka. Tutup voting dulu, atau konfirmasi untuk tetap mengundi.');
+      const prize = clean(b.prize, 120) || 'Hadiah pemilih';
+      const backups = Math.min(5, Math.max(0, parseInt(b.backups, 10) || 0));
+      let scope = 'all', label = 'Semua pemilih sah', bikeId = null;
+      if (typeof b.scope === 'string' && (g = b.scope.match(/^bike:(\d+)$/))) {
+        bikeId = Number(g[1]);
+        const bk = await env.DB.prepare('SELECT b.number, b.name, c.name AS cat FROM bikes b JOIN categories c ON c.id = b.category_id WHERE b.id = ?').bind(bikeId).first();
+        if (!bk) throw new HttpError(404, 'Motor tidak ditemukan.');
+        scope = 'bike:' + bikeId; label = `Pemilih motor #${bk.number} ${bk.name} (${bk.cat})`;
+      }
+      const sql = `SELECT DISTINCT r.id FROM voters r JOIN votes v ON v.voter_id = r.id
+        WHERE r.void = 0 ${bikeId ? 'AND v.bike_id = ?1' : ''}
+          AND r.id NOT IN (SELECT voter_id FROM draw_winners WHERE rank = 1 OR status IN ('diterima','gugur'))
+        ORDER BY r.id`;
+      const { results } = await (bikeId ? env.DB.prepare(sql).bind(bikeId) : env.DB.prepare(sql)).all();
+      const ids = results.map((x) => x.id);
+      if (!ids.length) throw new HttpError(409, 'Tidak ada pemilih sah yang memenuhi syarat untuk diundi.');
+      const picked = shuffle(ids).slice(0, 1 + backups);
+      const d = await env.DB.prepare('INSERT INTO draws(prize, scope, scope_label, pool_size, created_at) VALUES(?,?,?,?,?)').bind(prize, scope, label, ids.length, new Date().toISOString()).run();
+      const drawId = d.meta.last_row_id;
+      await env.DB.batch(picked.map((vid, i) => env.DB.prepare('INSERT INTO draw_winners(draw_id, rank, voter_id) VALUES(?,?,?)').bind(drawId, i + 1, vid)));
+      return json({ ok: true, id: drawId });
+    }
+    if (m === 'POST' && (g = p.match(/^\/api\/admin\/draw\/winner\/(\d+)$/))) {
+      await ensureDrawTables(env);
+      const b = await readJson(req, 500);
+      const status = ['menunggu', 'diterima', 'gugur'].includes(b.status) ? b.status : 'menunggu';
+      await env.DB.prepare('UPDATE draw_winners SET status = ? WHERE id = ?').bind(status, Number(g[1])).run();
+      return json({ ok: true });
+    }
+    if (m === 'POST' && (g = p.match(/^\/api\/admin\/draw\/(\d+)\/delete$/))) {
+      await ensureDrawTables(env);
+      await env.DB.batch([env.DB.prepare('DELETE FROM draw_winners WHERE draw_id = ?').bind(Number(g[1])), env.DB.prepare('DELETE FROM draws WHERE id = ?').bind(Number(g[1]))]);
       return json({ ok: true });
     }
 

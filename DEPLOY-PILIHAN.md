@@ -22,3 +22,12 @@ Pembatasan curang: satu nomor HP = satu pemilih, satu perangkat (cookie) = satu 
 ## Specboard ber-QR
 
 `python3 tools/specboard_qr.py Specboard.pdf https://pilihan.ichiban.ai.id Specboard_QR.pdf` menempel QR ke kotak "TEMPEL STICKER QR" di setiap halaman. Satu motor bisa ikut beberapa kelas: halaman motornya menampilkan tombol pilih untuk tiap kelas. Impor lewat admin menyinkronkan data (motor yang tidak ada di file dihapus).
+
+## Undi pemenang (tab "🎁 Undi" di admin)
+
+- **Juara motor per kelas**: dihitung dari suara sah (suara yang di-void tidak dihitung). Kalau ada seri di puncak, ditandai ⚠️ SERI supaya diputuskan sesuai aturan seri.
+- **Undi pemenang pemilih**: acak kriptografis dari pemilih sah yang memberi minimal 1 suara. Pilihan peserta: semua pemilih, atau hanya pemilih juara sebuah kelas. Tersedia 0–5 pemenang cadangan.
+- Pemenang utama undian sebelumnya tidak ikut diundi lagi; yang ditandai "Diterima"/"Gugur" juga dikeluarkan.
+- Tandai "Diterima" saat hadiah diserahkan, atau "Gugur" bila tidak hadir, lalu hubungi cadangan berikutnya.
+- Voting yang masih dibuka meminta konfirmasi sebelum undian. Disarankan: tutup voting, jalankan pemeriksaan pola mencurigakan, baru undi.
+- Tabel `draws` dan `draw_winners` dibuat otomatis saat pertama dipakai, tidak perlu migrasi manual.

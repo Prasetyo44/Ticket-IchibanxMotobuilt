@@ -30,6 +30,7 @@
       <button data-t="summary" class="on">Hasil</button>
       <button data-t="bikes">Motor &amp; Kategori</button>
       <button data-t="voters">Pemilih</button>
+      <button data-t="draw">🎁 Undi</button>
       <button data-t="settings">Pengaturan</button>
     </div>
     <button class="btn sm ghost" id="logout">Keluar</button>
@@ -78,6 +79,21 @@
       <div class="tbl-wrap"><table class="t"><thead><tr><th>Waktu</th><th>Pemilih</th><th>Kontak</th><th>Komunitas</th><th>Motor</th><th>Suara</th><th>Promo</th><th></th></tr></thead><tbody id="vRows"></tbody></table></div>
     </section>
 
+    <section id="t-draw" class="hidden">
+      <div class="card"><h2>🏆 Juara motor per kelas</h2><p class="sub">Berdasarkan suara sah (suara yang dibatalkan tidak dihitung). Jalankan dulu pemeriksaan pola mencurigakan di tab Hasil sebelum menetapkan juara.</p><div id="dwClasses"></div></div>
+      <div class="card"><h2>🎁 Undi pemenang pemilih</h2>
+        <p class="sub">Diundi acak (random kriptografis) dari pemilih sah yang memberi minimal 1 suara. Pemenang sebelumnya tidak ikut diundi lagi. Pemenang cadangan dipakai bila pemenang utama tidak hadir atau tidak bisa dihubungi.</p>
+        <div id="dwPool" class="sub"></div>
+        <div class="grid" style="margin-top:10px">
+          <div class="full"><label class="f">Nama hadiah</label><input id="dwPrize" style="width:100%" placeholder="mis. Voucher Ichiban Rp 1.000.000" maxlength="120"></div>
+          <div><label class="f">Peserta undian</label><select id="dwScope"></select></div>
+          <div><label class="f">Jumlah pemenang cadangan</label><select id="dwBackups"><option>0</option><option selected>2</option><option>3</option><option>5</option></select></div>
+        </div>
+        <button class="btn" id="dwGo" type="button" style="margin-top:12px">🎲 Undi sekarang</button>
+        <div id="dwFresh" style="margin-top:14px"></div>
+      </div>
+      <div class="card"><h2>Riwayat undian</h2><p class="sub">Tandai "Diterima" setelah hadiah diserahkan, atau "Gugur" bila pemenang tidak hadir, lalu cadangan berikutnya yang dihubungi.</p><div id="dwHist"></div></div>
+    </section>
     <section id="t-settings" class="hidden">
       <div class="card">
         <h2>Pengaturan</h2>
@@ -116,7 +132,7 @@ $('#loginBtn').onclick = async () => { try { await api('/api/admin/login', 'POST
 $('#pw').addEventListener('keydown', e => { if (e.key === 'Enter') $('#loginBtn').click(); });
 $('#logout').onclick = async () => { await fetch('/api/admin/logout', { method: 'POST' }); location.reload(); };
 
-const loaders = { summary: loadSummary, bikes: loadBikes, voters: loadVoters, settings: loadSettings };
+const loaders = { summary: loadSummary, bikes: loadBikes, voters: loadVoters, draw: loadDraw, settings: loadSettings };
 function openTab(t) {
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   Object.keys(loaders).forEach(k => $('#t-' + k).classList.toggle('hidden', k !== t));
@@ -204,6 +220,49 @@ async function loadVoters() {
     el('td', { textContent: r.consent_mkt ? 'Ya' : 'Tidak' }),
     el('td', {}, el('button', { className: 'btn sm ' + (r.void ? 'ghost' : 'danger'), textContent: r.void ? 'Pulihkan' : 'Batalkan', onclick: () => confirm((r.void ? 'Pulihkan ' : 'Batalkan suara ') + r.name + '?') && run(async () => { await api(`/api/admin/voters/${r.id}/void`, 'POST', { void: !r.void }); await loadVoters(); }) })))));
 }
+
+
+/* undi pemenang */
+const stLabel = { menunggu: 'Menunggu', diterima: 'Diterima', gugur: 'Gugur' };
+function drawCard(d, fresh) {
+  const wrap = el('div', { style: 'border:1px solid #d9dbe6;border-radius:12px;padding:14px;margin:0 0 12px' });
+  wrap.append(el('b', { textContent: '🎁 ' + d.prize }), el('div', { className: 'sub', textContent: `${d.scope_label} · ${d.pool_size} peserta · ${fmt(d.created_at)}` }));
+  d.winners.forEach(w => {
+    const row = el('div', { style: 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #e5e7ef' });
+    const info = el('div', {}, el('b', { style: w.rank === 1 ? 'font-size:' + (fresh ? '22px' : '17px') : '', textContent: (w.rank === 1 ? '🥇 Pemenang: ' : `Cadangan ${w.rank - 1}: `) + w.name }),
+      el('div', { className: 'sub', textContent: `${w.phone}${w.community ? ' · ' + w.community : ''}${w.city ? ' · ' + w.city : ''}${w.void ? ' · ⚠️ suara dibatalkan' : ''}` }));
+    const acts = el('div', { style: 'display:flex;gap:6px;align-items:center' }, el('span', { className: 'sub', textContent: stLabel[w.status] }));
+    [['diterima', 'Diterima'], ['gugur', 'Gugur']].forEach(([v, t]) => acts.append(el('button', { className: 'btn sm ' + (v === 'gugur' ? 'danger' : 'ghost'), type: 'button', textContent: t, disabled: w.status === v,
+      onclick: () => run(async () => { await api('/api/admin/draw/winner/' + w.id, 'POST', { status: v }); await loadDraw(); }) })));
+    row.append(info, acts); wrap.append(row);
+  });
+  wrap.append(el('button', { className: 'btn sm ghost', type: 'button', textContent: 'Hapus undian ini', onclick: () => confirm('Hapus catatan undian ini?') && run(async () => { await api(`/api/admin/draw/${d.id}/delete`, 'POST', {}); await loadDraw(); }) }));
+  return wrap;
+}
+async function loadDraw() {
+  const d = await api('/api/admin/draw');
+  $('#dwPool').textContent = `Pemilih sah yang sudah memberi suara: ${d.pool}. Status voting: ${{ soon: 'belum dibuka', open: 'MASIH DIBUKA', closed: 'ditutup' }[d.status]}.`;
+  $('#dwClasses').replaceChildren(...(d.classes.length ? d.classes.map(c => el('div', { style: 'padding:8px 0;border-top:1px solid #e5e7ef' },
+    el('b', { textContent: c.name + ' · ' + c.total + ' suara' }),
+    el('div', { textContent: !c.top ? 'Belum ada suara.' : c.tie ? '⚠️ SERI: ' + c.leaders.map(l => `#${l.number} ${l.name}`).join(' & ') + ` (${c.top} suara). Tentukan sesuai aturan seri.` : `🏆 #${c.leaders[0].number} ${c.leaders[0].name}${c.leaders[0].owner ? ' (' + c.leaders[0].owner + ')' : ''} · ${c.top} suara` }),
+    el('div', { className: 'sub', textContent: 'Top 5: ' + c.ranking.map(r => `#${r.number} (${r.votes})`).join(', ') }))) : [el('p', { className: 'sub', textContent: 'Belum ada data.' })]));
+  const keep = $('#dwScope').value;
+  const opts = [el('option', { value: 'all', textContent: 'Semua pemilih sah' })];
+  d.classes.forEach(c => { if (c.top && !c.tie) opts.push(el('option', { value: 'bike:' + c.leaders[0].id, textContent: `Hanya pemilih juara kelas ${c.name} (#${c.leaders[0].number})` })); });
+  $('#dwScope').replaceChildren(...opts); if ([...$('#dwScope').options].some(o => o.value === keep)) $('#dwScope').value = keep;
+  $('#dwHist').replaceChildren(...(d.draws.length ? d.draws.map(x => drawCard(x, false)) : [el('p', { className: 'sub', textContent: 'Belum ada undian.' })]));
+  window._dw = d;
+}
+$('#dwGo').onclick = () => run(async () => {
+  const d = window._dw || await api('/api/admin/draw'); let force = false;
+  if (d.status === 'open') { if (!confirm('Voting MASIH DIBUKA. Tetap undi sekarang? (Disarankan tutup voting dulu.)')) return; force = true; }
+  if (!confirm('Jalankan undian sekarang? Hasil akan tercatat.')) return;
+  const r = await api('/api/admin/draw', 'POST', { prize: $('#dwPrize').value, scope: $('#dwScope').value, backups: $('#dwBackups').value, force });
+  await loadDraw();
+  const one = (window._dw.draws || []).find(x => x.id === r.id);
+  $('#dwFresh').replaceChildren(...(one ? [el('p', { className: 'sub', textContent: 'Hasil undian terbaru:' }), drawCard(one, true)] : []));
+  toast('Undian selesai');
+});
 
 /* pengaturan */
 async function loadSettings() {
