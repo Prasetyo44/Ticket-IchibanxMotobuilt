@@ -155,6 +155,8 @@ const DEFAULTS = {
   status: 'soon', // soon | open | closed
   venue_code: '', // kode lokasi (ditampilkan panitia di venue); kosong = tidak dipakai
   show_results: '1', // tampilkan hasil ke publik setelah voting ditutup
+  prize_title: 'Setiap pemilih otomatis ikut undian hadiah dari Ichiban Paint!', // judul banner hadiah (kosong = disembunyikan)
+  prize_text: '', // rincian hadiah, mis. 'Voucher Rp 1 juta + merchandise'
   ip_limit: '40', // maks pendaftaran per jam dari satu alamat IP (wifi venue dipakai banyak orang)
 };
 async function getSettings(env) {
@@ -255,7 +257,10 @@ async function handle(req, env) {
     const out = {
       title: s.event_title, intro: s.intro, status: s.status, needs_code: !!s.venue_code,
       turnstile_site_key: env.TURNSTILE_SITE_KEY || '', categories: cats,
+      prize_title: s.prize_title, prize_text: s.prize_text,
     };
+    const vc = await env.DB.prepare('SELECT COUNT(DISTINCT r.id) AS c FROM voters r JOIN votes v ON v.voter_id = r.id WHERE r.void = 0').first();
+    if (vc && vc.c >= 25) out.voted = vc.c; // bukti sosial, hanya tampil bila sudah cukup banyak
     if (s.status === 'closed' && s.show_results === '1') out.results = withResults(cats, await tallies(env));
     return json(out);
   }
@@ -595,7 +600,7 @@ async function handle(req, env) {
       const b = await readJson(req, 10_000);
       const status = STATUSES.includes(b.status) ? b.status : 'soon';
       const vals = {
-        event_title: clean(b.event_title, 120) || DEFAULTS.event_title, intro: clean(b.intro, 400), status,
+        event_title: clean(b.event_title, 120) || DEFAULTS.event_title, intro: clean(b.intro, 400), prize_title: clean(b.prize_title, 120), prize_text: clean(b.prize_text, 300), status,
         venue_code: clean(b.venue_code, 40), show_results: b.show_results ? '1' : '0',
         ip_limit: String(Math.min(500, Math.max(3, parseInt(b.ip_limit, 10) || 40))),
       };

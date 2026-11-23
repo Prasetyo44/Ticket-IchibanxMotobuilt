@@ -100,6 +100,8 @@
         <div class="formgrid" id="setForm">
           <div class="full"><label class="f">Judul</label><input type="text" name="event_title"></div>
           <div class="full"><label class="f">Teks pengantar</label><textarea name="intro" rows="2"></textarea></div>
+          <div class="full"><label class="f">🎁 Judul banner hadiah <span class="opt">(tampil di halaman voting; kosong = disembunyikan)</span></label><input type="text" name="prize_title" maxlength="120"></div>
+          <div class="full"><label class="f">Rincian hadiah <span class="opt">(mis. Voucher Rp 1 juta + merchandise Ichiban)</span></label><input type="text" name="prize_text" maxlength="300"></div>
           <div><label class="f">Status voting</label><select name="status"><option value="soon">Belum dibuka</option><option value="open">Dibuka</option><option value="closed">Ditutup</option></select></div>
           <div><label class="f">Kode lokasi <span class="opt">(kosong = tanpa kode)</span></label><input type="text" name="venue_code" autocomplete="off" placeholder="Umumkan di lokasi acara; ganti kapan saja"></div>
           <div><label class="f">Maks pendaftaran per jam per jaringan</label><input type="number" min="3" max="500" name="ip_limit"></div>
