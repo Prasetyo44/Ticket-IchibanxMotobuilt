@@ -92,6 +92,12 @@
         <button class="btn" id="dwGo" type="button" style="margin-top:12px">🎲 Undi sekarang</button>
         <div id="dwFresh" style="margin-top:14px"></div>
       </div>
+      <div class="card"><h2>🔥 Spill flyer (hasil sementara)</h2>
+        <p class="sub">Membuat flyer Instagram (1080×1350) berisi Top 3 motor per kelas <b>tanpa angka suara</b>, berlabel "SEMENTARA". Jalankan pemeriksaan pola mencurigakan dulu agar yang ditonjolkan bukan suara curang.</p>
+        <div class="grid" style="margin-top:8px"><div><label class="f">Kelas</label><select id="spClass"></select></div><div><label class="f">Teks ajakan</label><input id="spCta" maxlength="60" value="Belum pilih? Scan QR sekarang!"></div></div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="spDl" type="button">⬇️ Unduh flyer kelas ini</button><button class="btn ghost" id="spAll" type="button">⬇️ Unduh semua kelas</button></div>
+        <canvas id="spCv" width="1080" height="1350" style="width:100%;max-width:360px;margin-top:14px;border-radius:12px;border:1px solid #d9dbe6"></canvas>
+      </div>
       <div class="card"><h2>Riwayat undian</h2><p class="sub">Tandai "Diterima" setelah hadiah diserahkan, atau "Gugur" bila pemenang tidak hadir, lalu cadangan berikutnya yang dihubungi.</p><div id="dwHist"></div></div>
     </section>
     <section id="t-settings" class="hidden">
@@ -254,6 +260,8 @@ async function loadDraw() {
   $('#dwScope').replaceChildren(...opts); if ([...$('#dwScope').options].some(o => o.value === keep)) $('#dwScope').value = keep;
   $('#dwHist').replaceChildren(...(d.draws.length ? d.draws.map(x => drawCard(x, false)) : [el('p', { className: 'sub', textContent: 'Belum ada undian.' })]));
   window._dw = d;
+  const sk = $('#spClass').value; $('#spClass').replaceChildren(...d.classes.map(c => el('option', { value: c.id, textContent: c.name })));
+  if ([...$('#spClass').options].some(o => o.value === sk)) $('#spClass').value = sk; spRender();
 }
 $('#dwGo').onclick = () => run(async () => {
   const d = window._dw || await api('/api/admin/draw'); let force = false;
@@ -264,6 +272,54 @@ $('#dwGo').onclick = () => run(async () => {
   const one = (window._dw.draws || []).find(x => x.id === r.id);
   $('#dwFresh').replaceChildren(...(one ? [el('p', { className: 'sub', textContent: 'Hasil undian terbaru:' }), drawCard(one, true)] : []));
   toast('Undian selesai');
+});
+
+
+/* spill flyer */
+function rankGroups(c) { // peringkat dengan seri berbagi nomor; tanpa angka suara
+  const out = []; let last = null;
+  for (const r of c.ranking) { if (!r.votes) break; if (r.votes !== last) { out.push({ rank: out.length + 1, items: [] }); last = r.votes; } out[out.length - 1].items.push(r); }
+  return out.slice(0, 3);
+}
+function wrapText(x, t, maxW, ctx) { const w = t.split(' '); const lines = []; let l = ''; for (const a of w) { const n = l ? l + ' ' + a : a; if (ctx.measureText(n).width > maxW && l) { lines.push(l); l = a; } else l = n; } if (l) lines.push(l); return lines; }
+async function drawSpill(cv, c, cta) {
+  await Promise.all([document.fonts.load('800 40px "Plus Jakarta Sans"'), document.fonts.load('italic 800 40px Kanit')]);
+  const x = cv.getContext('2d'), W = 1080, H = 1350; x.clearRect(0, 0, W, H);
+  x.fillStyle = '#0a0a0e'; x.fillRect(0, 0, W, H);
+  [[560, '#4d0a12'], [380, '#33070d'], [190, '#66101a']].forEach(([r, col]) => { x.fillStyle = col; x.beginPath(); x.arc(70, 30, r, 0, 7); x.fill(); });
+  x.fillStyle = '#0a0a0e'; x.fillRect(0, 760, W, H);
+  x.fillStyle = '#e31e2b'; x.fillRect(0, 0, W, 10); x.fillRect(0, H - 10, W, 10);
+  x.textAlign = 'left'; x.font = '800 30px "Plus Jakarta Sans"'; x.fillStyle = '#fff'; x.fillText('ICHIBAN PAINT', 60, 90); x.fillStyle = '#e31e2b'; x.fillText('× MOTOBUILT', 60 + x.measureText('ICHIBAN PAINT  ').width, 90);
+  x.textAlign = 'center'; x.fillStyle = '#ffd23f'; x.font = '800 30px "Plus Jakarta Sans"'; x.fillText("PEOPLE'S CHOICE  •  IMOS 2026", W / 2, 190);
+  x.fillStyle = '#fff'; x.font = 'italic 800 118px Kanit'; x.fillText('SPILL TOP 3', W / 2, 305);
+  x.fillStyle = '#ffb81c'; x.beginPath(); x.roundRect(W / 2 - 310, 335, 620, 58, 29); x.fill();
+  x.fillStyle = '#1a1205'; x.font = '800 28px "Plus Jakarta Sans"'; x.fillText('⏳ HASIL SEMENTARA, BELUM FINAL', W / 2, 374);
+  x.fillStyle = '#fff'; x.font = '800 48px "Plus Jakarta Sans"'; x.fillText(c.name.toUpperCase(), W / 2, 470);
+  const groups = rankGroups(c); const medals = ['🥇', '🥈', '🥉']; let y = 510;
+  if (!groups.length) { x.fillStyle = '#c9c9d6'; x.font = '600 32px "Plus Jakarta Sans"'; x.fillText('Belum ada suara. Jadilah yang pertama!', W / 2, y + 90); y += 150; }
+  for (const g of groups) {
+    const h = 56 + g.items.length * 78; x.fillStyle = g.rank === 1 ? '#e31e2b' : 'rgba(255,255,255,.09)'; x.beginPath(); x.roundRect(70, y, W - 140, h, 22); x.fill();
+    x.textAlign = 'left'; x.font = '60px "Plus Jakarta Sans"'; x.fillStyle = '#fff'; x.fillText(medals[g.rank - 1], 96, y + h / 2 + 22);
+    g.items.forEach((b, i) => {
+      const cy = y + 28 + i * 78 + 40; x.fillStyle = '#fff'; x.font = '800 54px "Plus Jakarta Sans"'; x.fillText('#' + b.number, 190, cy + 8);
+      x.font = '600 28px "Plus Jakarta Sans"'; x.fillStyle = g.rank === 1 ? '#fff' : '#d9d9e4'; let nm = b.name || ''; while (x.measureText(nm).width > 620 && nm.length > 3) nm = nm.slice(0, -2); x.fillText(nm === (b.name || '') ? nm : nm + '…', 340, cy + 6);
+    }); y += h + 18;
+  }
+  x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '800 44px "Plus Jakarta Sans"'; x.fillText(cta || 'Belum pilih? Scan QR sekarang!', W / 2, 1090);
+  x.fillStyle = '#d9d9e4'; x.font = '600 28px "Plus Jakarta Sans"'; x.fillText('Pilih motor favoritmu & menangkan hadiah dari Ichiban Paint', W / 2, 1138);
+  x.fillStyle = '#e31e2b'; x.beginPath(); x.roundRect(W / 2 - 270, 1175, 540, 80, 40); x.fill();
+  x.fillStyle = '#fff'; x.font = '800 38px "Plus Jakarta Sans"'; x.fillText('pilihan.ichiban.ai.id', W / 2, 1229);
+  x.fillStyle = '#9a9aa8'; x.font = '600 22px "Plus Jakarta Sans"'; x.fillText('Indonesia Motorcycle Show  •  20–29 November 2026  •  ICE BSD City', W / 2, 1304);
+}
+function spSel() { const d = window._dw; return d && d.classes.find(c => String(c.id) === $('#spClass').value); }
+async function spRender() { const c = spSel(); if (c) await drawSpill($('#spCv'), c, $('#spCta').value); }
+function spSave(cv, name) { cv.toBlob(b => { const a = el('a', { href: URL.createObjectURL(b), download: `Spill_Top3_${name.replace(/\W+/g, '_')}.png` }); document.body.append(a); a.click(); a.remove(); }, 'image/png'); }
+$('#spClass').onchange = spRender; $('#spCta').oninput = spRender;
+$('#spDl').onclick = () => run(async () => { await spRender(); const c = spSel(); if (c) spSave($('#spCv'), c.name); });
+$('#spAll').onclick = () => run(async () => {
+  const d = window._dw, cv = document.createElement('canvas'); cv.width = 1080; cv.height = 1350;
+  for (const c of d.classes.filter(c => c.top)) { await drawSpill(cv, c, $('#spCta').value); spSave(cv, c.name); await new Promise(r => setTimeout(r, 400)); }
+  await spRender();
 });
 
 /* pengaturan */
