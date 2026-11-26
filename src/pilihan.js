@@ -194,6 +194,7 @@ function withResults(cats, tally) {
 
 /* ----------------------------------- Undi pemenang ----------------------------------- */
 
+let cfgCache = null, votedCache = { t: 0, c: 0 };
 let drawReady = false;
 async function ensureDrawTables(env) {
   if (drawReady) return;
@@ -252,17 +253,25 @@ async function handle(req, env) {
 
   /* ---------------- Publik ---------------- */
   if (m === 'GET' && p === '/api/config') {
-    const s = await getSettings(env);
-    const cats = (await catalog(env)).map((c) => ({ ...c, bikes: c.bikes.filter((b) => b.active) }));
-    const out = {
-      title: s.event_title, intro: s.intro, status: s.status, needs_code: !!s.venue_code,
-      turnstile_site_key: env.TURNSTILE_SITE_KEY || '', categories: cats,
-      prize_title: s.prize_title, prize_text: s.prize_text,
-    };
-    const vc = await env.DB.prepare('SELECT COUNT(DISTINCT r.id) AS c FROM voters r JOIN votes v ON v.voter_id = r.id WHERE r.void = 0').first();
-    if (vc && vc.c >= 25) out.voted = vc.c; // bukti sosial, hanya tampil bila sudah cukup banyak
-    if (s.status === 'closed' && s.show_results === '1') out.results = withResults(cats, await tallies(env));
-    return json(out);
+    // cache 15 dtk per isolate: halaman ini dibuka semua pengunjung, jangan tiap kali membaca D1
+    const now = Date.now();
+    if (!cfgCache || now - cfgCache.t > 15000) {
+      const s = await getSettings(env);
+      const cats = (await catalog(env)).map((c) => ({ ...c, bikes: c.bikes.filter((b) => b.active) }));
+      const out = {
+        title: s.event_title, intro: s.intro, status: s.status, needs_code: !!s.venue_code,
+        turnstile_site_key: env.TURNSTILE_SITE_KEY || '', categories: cats,
+        prize_title: s.prize_title, prize_text: s.prize_text,
+      };
+      if (now - (votedCache.t || 0) > 60000) { // hitung pemilih paling cepat tiap 60 dtk
+        const vc = await env.DB.prepare('SELECT COUNT(*) AS c FROM voters WHERE void = 0').first();
+        votedCache = { t: now, c: vc ? vc.c : 0 };
+      }
+      if (votedCache.c >= 25) out.voted = votedCache.c;
+      if (s.status === 'closed' && s.show_results === '1') out.results = withResults(cats, await tallies(env));
+      cfgCache = { t: now, out };
+    }
+    return json(cfgCache.out);
   }
 
   if (m === 'GET' && p === '/api/me') {
