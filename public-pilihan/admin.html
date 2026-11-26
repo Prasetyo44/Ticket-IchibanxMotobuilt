@@ -67,6 +67,7 @@
         </div>
         <div style="margin-top:14px;display:flex;gap:8px"><button class="btn" id="bSave">Simpan motor</button><button class="btn ghost hidden" id="bCancel">Batal edit</button></div>
       </div>
+      <div class="grid" style="margin:0 0 10px"><div class="full"><input id="bSearch" type="search" placeholder="🔍 Cari motor: nomor, nama, pemilik/komunitas, kelas..." autocomplete="off" style="width:100%"></div><div><select id="bFilterCat"></select></div><div style="display:flex;align-items:center"><span id="bCount" class="sub"></span></div></div>
       <div class="tbl-wrap"><table class="t"><thead><tr><th>Foto</th><th>No</th><th>Motor</th><th>Kategori</th><th>Status</th><th></th></tr></thead><tbody id="bikeRows"></tbody></table></div>
     </section>
 
@@ -191,7 +192,21 @@ async function loadBikes() {
       el('button', { className: 'btn sm ghost', textContent: b.active ? 'Sembunyikan' : 'Tampilkan', onclick: () => run(async () => { await api('/api/admin/bikes/' + b.id, 'PUT', { ...b, active: !b.active }); await loadBikes(); }) }),
       el('button', { className: 'btn sm danger', textContent: 'Hapus', onclick: () => confirm(`Hapus #${b.number} ${b.name}? Suara untuk motor ini ikut terhapus.`) && run(async () => { await api('/api/admin/bikes/' + b.id, 'DELETE'); await loadBikes(); }) })))));
   $('#bikeRows').replaceChildren(...rows);
+  const fk = $('#bFilterCat').value;
+  $('#bFilterCat').replaceChildren(el('option', { value: '', textContent: 'Semua kelas' }), ...CAT.map(c => el('option', { value: c.name, textContent: c.name })));
+  if ([...$('#bFilterCat').options].some(o => o.value === fk)) $('#bFilterCat').value = fk;
+  filterBikes();
 }
+function filterBikes() {
+  const q = $('#bSearch').value.toLowerCase().trim().replace(/^#/, ''), cat = $('#bFilterCat').value; let n = 0, all = 0;
+  for (const tr of $('#bikeRows').children) {
+    all++; const t = tr.textContent.toLowerCase(); const catOk = !cat || tr.children[3].textContent === cat;
+    const ok = catOk && (!q || q.split(/\s+/).every(w => t.includes(w)));
+    tr.hidden = !ok; if (ok) n++;
+  }
+  $('#bCount').textContent = (q || cat) ? `${n} dari ${all} motor` : `${all} motor`;
+}
+$('#bSearch').oninput = filterBikes; $('#bFilterCat').onchange = filterBikes;
 $('#catAdd').onclick = () => run(async () => { await api('/api/admin/categories', 'POST', { name: $('#catName').value }); $('#catName').value = ''; await loadBikes(); });
 function resetBikeForm() { editId = null; photoData = null; ['bNum', 'bName', 'bOwner', 'bInfo', 'bDetail'].forEach(i => $('#' + i).value = ''); $('#bPhoto').value = ''; $('#bPrev').classList.add('hidden'); $('#bikeFormTitle').textContent = 'Tambah motor'; $('#bCancel').classList.add('hidden'); }
 function editBike(c, b) { editId = b.id; photoData = null; $('#bCat').value = c.id; $('#bNum').value = b.number; $('#bName').value = b.name; $('#bOwner').value = b.owner || ''; $('#bInfo').value = b.info || ''; $('#bDetail').value = b.detail || ''; $('#bikeFormTitle').textContent = `Edit motor #${b.number}`; $('#bCancel').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
