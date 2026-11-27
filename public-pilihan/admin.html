@@ -105,6 +105,13 @@
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="spDl" type="button">⬇️ Unduh flyer kelas ini</button><button class="btn ghost" id="spAll" type="button">⬇️ Unduh semua kelas</button></div>
         <canvas id="spCv" width="1080" height="1350" style="width:100%;max-width:360px;margin-top:14px;border-radius:12px;border:1px solid #d9dbe6"></canvas>
       </div>
+      <div class="card"><h2>🌀 Spill Top 15 (animasi nomor melayang)</h2>
+        <p class="sub">Video vertikal 1080×1920 (Reels/Story): 15 nomor motor teratas melayang dan berputar, <b>tanpa urutan, tanpa nama, tanpa angka suara</b>, berlabel "HASIL SEMENTARA". Jalankan dulu pemeriksaan pola mencurigakan.</p>
+        <div class="grid" style="margin-top:8px"><div class="full"><label class="f">Teks penutupan</label><input id="s15Cta" maxlength="60" value="Voting ditutup hari Minggu!"></div></div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="s15Rec" type="button">⏺️ Rekam video (12 detik)</button><button class="btn ghost" id="s15Full" type="button">▶️ Putar layar penuh</button></div>
+        <p class="sub" id="s15Msg" style="margin-top:8px"></p>
+        <canvas id="s15Cv" width="1080" height="1920" style="width:100%;max-width:300px;margin-top:10px;border-radius:12px;border:1px solid #d9dbe6"></canvas>
+      </div>
       <div class="card"><h2>Riwayat undian</h2><p class="sub">Tandai "Diterima" setelah hadiah diserahkan, atau "Gugur" bila pemenang tidak hadir, lalu cadangan berikutnya yang dihubungi.</p><div id="dwHist"></div></div>
     </section>
     <section id="t-settings" class="hidden">
@@ -283,7 +290,7 @@ async function loadDraw() {
   if (ov.top && !ov.tie) opts.push(el('option', { value: 'motor:' + ov.leaders[0].number, textContent: `Hanya pemilih juara umum (#${ov.leaders[0].number})` }));
   $('#dwScope').replaceChildren(...opts); if ([...$('#dwScope').options].some(o => o.value === keep)) $('#dwScope').value = keep;
   $('#dwHist').replaceChildren(...(d.draws.length ? d.draws.map(x => drawCard(x, false)) : [el('p', { className: 'sub', textContent: 'Belum ada undian.' })]));
-  window._dw = d;
+  window._dw = d; if (d.overall.top15 && d.overall.top15.length) s15Prep().then(() => s15Loop($('#s15Cv'))).catch(() => {});
   loadAV();
   const sk = $('#spClass').value; $('#spClass').replaceChildren(el('option', { value: 'overall', textContent: 'Juara Umum (semua kelas)' }), ...d.classes.map(c => el('option', { value: c.id, textContent: c.name })));
   if ([...$('#spClass').options].some(o => o.value === sk)) $('#spClass').value = sk; spRender();
@@ -411,6 +418,67 @@ $('#stgWin').onclick = () => run(async () => {
     box.replaceChildren(big('🏆 JUARA PEOPLE\'S CHOICE 🏆', 44, '#ffd23f'), el('div', { style: 'height:10px' }), big('#' + w.number, 220, '#e31e2b'), big(w.name.toUpperCase(), 72), w.owner ? big(w.owner, 40, '#ffd9dc') : '', el('div', { style: 'height:16px' }), big(`${w.votes} suara dari pengunjung`, 30));
     confetti(cv, o);
   });
+});
+
+
+/* spill top 15 animasi */
+const S15 = { nums: [], raf: 0, t0: 0, cta: '' };
+function s15Frame(cv, t) { // t detik
+  if (cv.id === 's15Cv' && $('#t-draw').classList.contains('hidden')) return;
+  const x = cv.getContext('2d'), W = 1080, H = 1920; x.clearRect(0, 0, W, H);
+  x.fillStyle = '#0a0a0e'; x.fillRect(0, 0, W, H);
+  const g = x.createRadialGradient(W / 2, 1000, 50, W / 2, 1000, 760); g.addColorStop(0, 'rgba(227,30,43,.55)'); g.addColorStop(.6, 'rgba(90,10,20,.35)'); g.addColorStop(1, 'rgba(10,10,14,0)');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#e31e2b'; x.fillRect(0, 0, W, 12); x.fillRect(0, H - 12, W, 12);
+  x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '800 32px "Plus Jakarta Sans"'; x.fillText('ICHIBAN PAINT  ×  MOTOBUILT', W / 2, 110);
+  x.fillStyle = '#ffd23f'; x.font = '800 34px "Plus Jakarta Sans"'; x.fillText("PEOPLE'S CHOICE  •  IMOS 2026", W / 2, 200);
+  x.fillStyle = '#fff'; x.font = 'italic 800 150px Kanit'; x.fillText('SPILL TOP 15', W / 2, 340);
+  const pulse = 1 + Math.sin(t * 4) * .03; x.save(); x.translate(W / 2, 410); x.scale(pulse, pulse);
+  x.fillStyle = '#ffb81c'; x.beginPath(); x.roundRect(-320, -32, 640, 64, 32); x.fill(); x.fillStyle = '#1a1205'; x.font = '800 30px "Plus Jakarta Sans"'; x.fillText('⏳ HASIL SEMENTARA, BELUM FINAL', 0, 11); x.restore();
+  // pusat
+  x.fillStyle = 'rgba(255,255,255,.92)'; x.font = '800 36px "Plus Jakarta Sans"'; x.fillText('MOTOR KAMU', W / 2, 985); x.fillStyle = '#ffd23f'; x.font = 'italic 800 64px Kanit'; x.fillText('MASUK?', W / 2, 1048);
+  // nomor melayang berputar (2 lingkaran, tanpa urutan)
+  const n = S15.nums.length, nIn = Math.min(6, Math.ceil(n * .4)), nOut = n - nIn;
+  S15.nums.forEach((no, i) => {
+    const inner = i < nIn, idx = inner ? i : i - nIn, cnt = inner ? nIn : nOut, R = inner ? 215 : 395, rad = inner ? 58 : 64;
+    const ang = (idx / cnt) * Math.PI * 2 + (inner ? 1 : -1) * t * (inner ? .55 : .35);
+    const bob = Math.sin(t * 1.8 + i * 1.7) * 14, px = W / 2 + Math.cos(ang) * R, py = 1000 + Math.sin(ang) * R + bob;
+    const r = rad + Math.sin(t * 2.2 + i) * 3;
+    const gl = x.createRadialGradient(px, py, r * .2, px, py, r * 1.8); gl.addColorStop(0, 'rgba(255,90,70,.45)'); gl.addColorStop(1, 'rgba(255,90,70,0)'); x.fillStyle = gl; x.beginPath(); x.arc(px, py, r * 1.8, 0, 7); x.fill();
+    const b = x.createLinearGradient(px - r, py - r, px + r, py + r); b.addColorStop(0, '#ff4b4b'); b.addColorStop(1, '#b3121f'); x.fillStyle = b; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+    x.lineWidth = 4; x.strokeStyle = 'rgba(255,255,255,.85)'; x.stroke();
+    x.fillStyle = '#fff'; x.font = '800 ' + (String(no).length > 2 ? 40 : 48) + 'px "Plus Jakarta Sans"'; x.fillText('#' + no, px, py + 16);
+  });
+  x.fillStyle = '#fff'; x.font = '800 54px "Plus Jakarta Sans"'; x.fillText(S15.cta || 'Voting ditutup hari Minggu!', W / 2, 1580);
+  x.fillStyle = '#d9d9e4'; x.font = '600 34px "Plus Jakarta Sans"'; x.fillText('Scan QR, pilih motor favoritmu & menangkan hadiah!', W / 2, 1640);
+  x.fillStyle = '#e31e2b'; x.beginPath(); x.roundRect(W / 2 - 320, 1695, 640, 96, 48); x.fill(); x.fillStyle = '#fff'; x.font = '800 46px "Plus Jakarta Sans"'; x.fillText('pilihan.ichiban.ai.id', W / 2, 1758);
+  x.fillStyle = '#9a9aa8'; x.font = '600 26px "Plus Jakarta Sans"'; x.fillText('Indonesia Motorcycle Show  •  20–29 November 2026  •  ICE BSD City', W / 2, 1860);
+}
+async function s15Prep() {
+  const d = window._dw || await api('/api/admin/draw'); S15.nums = (d.overall.top15 || []).slice(); S15.cta = $('#s15Cta').value;
+  await Promise.all([document.fonts.load('800 40px "Plus Jakarta Sans"'), document.fonts.load('italic 800 40px Kanit')]);
+  if (!S15.nums.length) throw new Error('Belum ada suara untuk di-spill.');
+  // acak urutan tampil supaya tidak menunjukkan peringkat
+  for (let i = S15.nums.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [S15.nums[i], S15.nums[j]] = [S15.nums[j], S15.nums[i]]; }
+}
+function s15Loop(cv) { cancelAnimationFrame(S15.raf); S15.t0 = performance.now(); const f = () => { s15Frame(cv, (performance.now() - S15.t0) / 1000); S15.raf = requestAnimationFrame(f); }; f(); }
+$('#s15Cta').oninput = () => { S15.cta = $('#s15Cta').value; };
+$('#s15Full').onclick = () => run(async () => {
+  await s15Prep();
+  const ov = el('div', { style: 'position:fixed;inset:0;z-index:9999;background:#000;display:flex;align-items:center;justify-content:center' });
+  const cv = el('canvas', { width: 1080, height: 1920, style: 'height:100%;max-width:100%;object-fit:contain' });
+  const x = el('button', { textContent: '✕ Tutup', style: 'position:absolute;top:14px;right:14px;background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-size:16px;cursor:pointer', onclick: () => { ov.remove(); s15Loop($('#s15Cv')); } });
+  ov.append(cv, x); document.body.append(ov); s15Loop(cv);
+});
+$('#s15Rec').onclick = () => run(async () => {
+  await s15Prep(); const cv = $('#s15Cv'); s15Loop(cv);
+  if (!window.MediaRecorder) throw new Error('Browser ini tidak mendukung perekaman. Pakai "Putar layar penuh" lalu rekam layar HP.');
+  const mime = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m));
+  const rec = new MediaRecorder(cv.captureStream(30), { mimeType: mime, videoBitsPerSecond: 8_000_000 }); const chunks = [];
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  const done = new Promise(r => rec.onstop = r); rec.start(); $('#s15Msg').textContent = '⏺️ Merekam... 12 detik'; await sleep(12000); rec.stop(); await done;
+  const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm'; const a = el('a', { href: URL.createObjectURL(new Blob(chunks, { type: mime })), download: `Spill_Top15_People_Choice.${ext}` }); document.body.append(a); a.click(); a.remove();
+  $('#s15Msg').textContent = ext === 'mp4' ? '✅ Video MP4 terunduh, siap diupload ke IG.' : '⚠️ Browser ini menghasilkan WebM yang belum bisa diupload ke IG. Pakai Chrome/Safari terbaru, atau rekam layar dari "Putar layar penuh".';
 });
 
 /* pengaturan */

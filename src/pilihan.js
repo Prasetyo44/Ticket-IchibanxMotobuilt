@@ -229,7 +229,7 @@ function overallWinner(results) {
   const arr = [...m.values()].filter((x) => x.votes > 0).sort((a, b) => b.votes - a.votes);
   const top = arr.length ? arr[0].votes : 0;
   const leaders = arr.filter((x) => x.votes === top);
-  return { top, tie: leaders.length > 1, leaders, ranking: arr.slice(0, 5), total: arr.reduce((t, x) => t + x.votes, 0) };
+  return { top, tie: leaders.length > 1, leaders, ranking: arr.slice(0, 5), top15: arr.slice(0, 15).map((x) => x.number), total: arr.reduce((t, x) => t + x.votes, 0) };
 }
 async function drawList(env) {
   const { results: ds } = await env.DB.prepare('SELECT * FROM draws ORDER BY id DESC LIMIT 100').all();
