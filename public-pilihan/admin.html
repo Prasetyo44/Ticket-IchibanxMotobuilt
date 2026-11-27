@@ -81,6 +81,12 @@
     </section>
 
     <section id="t-draw" class="hidden">
+      <div class="card" id="av"><h2>🛡️ Tindak otomatis</h2>
+        <p class="sub">Sistem memeriksa tiap 30 menit dan <b>membatalkan otomatis</b> hanya yang benar-benar janggal: nama asal-asalan (mis. "asdf", "test", "aaa"), atau minimal <b>dua</b> pola kuat sekaligus (nomor HP berurutan, data persis sama, 3 pendaftar dalam 10 menit dari satu jaringan, memilih kurang dari 3 detik). Satu wifi yang sama saja <b>tidak</b> cukup. Semua tercatat di bawah dan bisa dipulihkan; yang sudah kamu pulihkan tidak ditindak lagi.</p>
+        <label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" id="avOn"> <b>Penindakan otomatis aktif</b></label>
+        <button class="btn" id="avRun" type="button">Tindak sekarang</button> <button class="btn ghost" id="avRef" type="button">Segarkan</button>
+        <div id="avOut" style="margin-top:14px"></div>
+      </div>
       <div class="card"><h2>🏆 Juara motor per kelas</h2><p class="sub">Berdasarkan suara sah (suara yang dibatalkan tidak dihitung). Jalankan dulu pemeriksaan pola mencurigakan di tab Hasil sebelum menetapkan juara.</p><div id="dwClasses"></div></div>
       <div class="card"><h2>🎁 Undi pemenang pemilih</h2>
         <p class="sub">Diundi acak (random kriptografis) dari pemilih sah yang memberi minimal 1 suara. Pemenang sebelumnya tidak ikut diundi lagi. Pemenang cadangan dipakai bila pemenang utama tidak hadir atau tidak bisa dihubungi.</p>
@@ -275,6 +281,7 @@ async function loadDraw() {
   $('#dwScope').replaceChildren(...opts); if ([...$('#dwScope').options].some(o => o.value === keep)) $('#dwScope').value = keep;
   $('#dwHist').replaceChildren(...(d.draws.length ? d.draws.map(x => drawCard(x, false)) : [el('p', { className: 'sub', textContent: 'Belum ada undian.' })]));
   window._dw = d;
+  loadAV();
   const sk = $('#spClass').value; $('#spClass').replaceChildren(...d.classes.map(c => el('option', { value: c.id, textContent: c.name })));
   if ([...$('#spClass').options].some(o => o.value === sk)) $('#spClass').value = sk; spRender();
 }
@@ -336,6 +343,22 @@ $('#spAll').onclick = () => run(async () => {
   for (const c of d.classes.filter(c => c.top)) { await drawSpill(cv, c, $('#spCta').value); spSave(cv, c.name); await new Promise(r => setTimeout(r, 400)); }
   await spRender();
 });
+
+
+/* tindak otomatis */
+async function loadAV() {
+  const d = await api('/api/admin/autovoid'); $('#avOn').checked = d.enabled; const o = $('#avOut');
+  const tbl = (head, rows) => el('div', { style: 'overflow-x:auto' }, el('table', {}, el('thead', {}, el('tr', {}, ...head.map(t => el('th', { textContent: t })))), el('tbody', {}, ...rows)));
+  const kids = [el('b', { textContent: d.preview.length ? `Siap ditindak (${d.preview.length})` : 'Tidak ada yang perlu ditindak saat ini.' })];
+  if (d.preview.length) kids.push(tbl(['Pemilih', 'Alasan'], d.preview.map(v => el('tr', {}, el('td', {}, el('b', { textContent: v.name }), el('div', { className: 'small', textContent: [v.phone, v.community].filter(Boolean).join(' • ') })), el('td', {}, ...v.reasons.map(r => el('div', { className: 'small', textContent: '• ' + r })))))));
+  kids.push(el('div', { style: 'margin-top:14px' }, el('b', { textContent: 'Riwayat penindakan' })));
+  kids.push(d.log.length ? tbl(['Waktu', 'Pemilih', 'Alasan', ''], d.log.map(l => el('tr', {}, el('td', { className: 'small', textContent: fmt(l.at) + ' (' + l.source + ')' }), el('td', {}, el('b', { textContent: l.name }), el('div', { className: 'small', textContent: l.phone })), el('td', { className: 'small', textContent: l.reason }),
+    el('td', {}, l.void ? el('button', { className: 'btn sm ghost', type: 'button', textContent: 'Pulihkan', onclick: () => confirm('Pulihkan ' + l.name + '? Tidak akan ditindak otomatis lagi.') && run(async () => { await api(`/api/admin/voters/${l.voter_id}/void`, 'POST', { void: false }); await loadAV(); }) }) : el('span', { className: 'small', textContent: 'Dipulihkan' }))))) : el('p', { className: 'sub', textContent: 'Belum ada.' }));
+  o.replaceChildren(...kids);
+}
+$('#avOn').onchange = () => run(async () => { await api('/api/admin/autovoid', 'POST', { action: 'toggle', enabled: $('#avOn').checked }); toast($('#avOn').checked ? 'Penindakan otomatis aktif' : 'Penindakan otomatis dimatikan'); });
+$('#avRef').onclick = () => run(loadAV);
+$('#avRun').onclick = () => run(async () => { if (!confirm('Batalkan otomatis semua yang tercantum "Siap ditindak"?')) return; const r = await api('/api/admin/autovoid', 'POST', { action: 'run' }); toast(`${r.count} pemilih dibatalkan`); await loadAV(); });
 
 /* pengaturan */
 async function loadSettings() {

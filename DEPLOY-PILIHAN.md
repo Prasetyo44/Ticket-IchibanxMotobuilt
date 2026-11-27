@@ -31,3 +31,10 @@ Pembatasan curang: satu nomor HP = satu pemilih, satu perangkat (cookie) = satu 
 - Tandai "Diterima" saat hadiah diserahkan, atau "Gugur" bila tidak hadir, lalu hubungi cadangan berikutnya.
 - Voting yang masih dibuka meminta konfirmasi sebelum undian. Disarankan: tutup voting, jalankan pemeriksaan pola mencurigakan, baru undi.
 - Tabel `draws` dan `draw_winners` dibuat otomatis saat pertama dipakai, tidak perlu migrasi manual.
+
+## Tindak otomatis (tab "🎁 Undi", kartu "🛡️ Tindak otomatis")
+
+- Cron tiap 30 menit (`triggers.crons` di `wrangler.pilihan.jsonc`) membatalkan (void) pemilih yang benar-benar janggal: nama asal-asalan, atau pola data kuat (HP berurutan / data persis sama) ditambah satu sinyal lain. Satu wifi yang sama dan memilih cepat saja tidak cukup.
+- Cron hanya bekerja bila ada pendaftar baru sejak pengecekan terakhir dan voting bukan "soon".
+- Semua tindakan tercatat di tabel `void_log` (dibuat otomatis) dan bisa dipulihkan; yang pernah dipulihkan tidak ditindak lagi.
+- Bisa dimatikan lewat kotak centang, dan dijalankan manual dengan "Tindak sekarang".

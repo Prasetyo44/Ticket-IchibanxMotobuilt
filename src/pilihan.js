@@ -230,6 +230,63 @@ async function drawList(env) {
   return ds.map((d) => ({ ...d, winners: ws.filter((w) => w.draw_id === d.id) }));
 }
 
+
+/* ----------------------------------- Penindakan otomatis ----------------------------------- */
+/* Hanya pola yang SANGAT janggal (bukan sekadar satu wifi): nama asal-asalan, atau minimal dua sinyal kuat sekaligus.
+   Semua tindakan dicatat di void_log dan bisa dipulihkan. Pemilih yang pernah dipulihkan admin tidak ditindak lagi. */
+let voidReady = false;
+async function ensureVoidLog(env) {
+  if (voidReady) return;
+  await env.DB.prepare('CREATE TABLE IF NOT EXISTS void_log (id INTEGER PRIMARY KEY AUTOINCREMENT, voter_id INTEGER NOT NULL, reason TEXT NOT NULL, source TEXT NOT NULL, at TEXT NOT NULL, restored INTEGER NOT NULL DEFAULT 0)').run();
+  voidReady = true;
+}
+function junkName(name) {
+  const nm = String(name || '').toLowerCase().replace(/[^a-z]/g, '');
+  return nm.length <= 1 || /^(.)\1{2,}$/.test(nm) || /(asdf|qwer|zxcv|test|coba|xxxx|aaaa|zzzz|abcd|asd|qwe)/.test(nm) || (nm.length >= 4 && !/[aeiou]/.test(nm));
+}
+async function autoCandidates(env) {
+  const vs = (await env.DB.prepare('SELECT id, name, phone, age, gender, community, motor, city, ip, created_at FROM voters WHERE void = 0 AND id NOT IN (SELECT voter_id FROM void_log WHERE restored = 1) ORDER BY created_at').all()).results;
+  const fv = (await env.DB.prepare('SELECT voter_id, MAX(created_at) AS last FROM votes GROUP BY voter_id').all()).results;
+  const lastVote = new Map(fv.map((x) => [x.voter_id, x.last]));
+  const sig = new Map(vs.map((v) => [v.id, new Map()])); // id -> {kode: alasan}
+  const put = (v, k, t) => sig.get(v.id).set(k, t);
+  const group = (keyFn, min, k, label) => {
+    const g = new Map();
+    for (const v of vs) { const key = keyFn(v); if (key) { if (!g.has(key)) g.set(key, []); g.get(key).push(v); } }
+    for (const arr of g.values()) if (arr.length >= min) for (const v of arr) put(v, k, label(arr.length));
+  };
+  group((v) => { const d = String(v.phone || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(0, -2) : ''; }, 3, 'B', (n) => `${n} nomor HP berurutan/mirip`);
+  group((v) => [v.community, v.motor, v.city, v.age, v.gender].map((x) => String(x ?? '').toLowerCase().trim()).join('|'), 3, 'C', (n) => `${n} pendaftar dengan data persis sama`);
+  const byIp = new Map();
+  for (const v of vs) if (v.ip) { if (!byIp.has(v.ip)) byIp.set(v.ip, []); byIp.get(v.ip).push(v); }
+  for (const arr of byIp.values()) for (let i = 0; i + 2 < arr.length; i++)
+    if (Date.parse(arr[i + 2].created_at) - Date.parse(arr[i].created_at) <= 10 * 60 * 1000) for (let j = i; j <= i + 2; j++) put(arr[j], 'D', 'mendaftar beruntun (3 dalam 10 menit) dari satu jaringan');
+  const out = [];
+  for (const v of vs) {
+    const lv = lastVote.get(v.id);
+    if (lv && Date.parse(lv) - Date.parse(v.created_at) < 3000) put(v, 'E', 'memilih kurang dari 3 detik setelah mendaftar');
+    const sg = sig.get(v.id), reasons = [...sg.values()];
+    if (junkName(v.name)) out.push({ ...v, reasons: ['nama asal-asalan: "' + v.name + '"', ...reasons] });
+    else if ((sg.has('B') || sg.has('C')) && sg.size >= 2) out.push({ ...v, reasons }); // minimal satu pola data (HP berurutan / data sama) + satu sinyal lain; wifi venue dan memilih cepat saja tidak cukup
+  }
+  return out;
+}
+async function runAutoVoid(env, source) {
+  await ensureVoidLog(env);
+  const list = await autoCandidates(env);
+  if (!list.length) return [];
+  const at = new Date().toISOString();
+  await env.DB.batch(list.flatMap((v) => [
+    env.DB.prepare('UPDATE voters SET void = 1 WHERE id = ? AND void = 0').bind(v.id),
+    env.DB.prepare('INSERT INTO void_log(voter_id, reason, source, at) VALUES(?,?,?,?)').bind(v.id, v.reasons.join('; ').slice(0, 400), source, at),
+  ]));
+  return list;
+}
+async function autoVoidEnabled(env) {
+  const r = await env.DB.prepare("SELECT value FROM settings WHERE key = 'auto_void'").first();
+  return !r || r.value === '1'; // default aktif
+}
+
 /* ----------------------------------- Router ----------------------------------- */
 
 async function handle(req, env) {
@@ -552,9 +609,29 @@ async function handle(req, env) {
     if (m === 'POST' && (g = p.match(/^\/api\/admin\/voters\/(\d+)\/void$/))) {
       const b = await readJson(req, 500);
       await env.DB.prepare('UPDATE voters SET void = ? WHERE id = ?').bind(b.void ? 1 : 0, Number(g[1])).run();
+      if (!b.void) { await ensureVoidLog(env); await env.DB.prepare('UPDATE void_log SET restored = 1 WHERE voter_id = ?').bind(Number(g[1])).run(); }
       return json({ ok: true });
     }
 
+
+
+    /* ---- Penindakan otomatis ---- */
+    if (m === 'GET' && p === '/api/admin/autovoid') {
+      await ensureVoidLog(env);
+      const preview = (await autoCandidates(env)).map((v) => ({ id: v.id, name: v.name, phone: v.phone, community: v.community, reasons: v.reasons }));
+      const { results: log } = await env.DB.prepare(
+        'SELECT l.id, l.voter_id, l.reason, l.source, l.at, l.restored, r.name, r.phone, r.community, r.void FROM void_log l JOIN voters r ON r.id = l.voter_id ORDER BY l.id DESC LIMIT 100').all();
+      return json({ enabled: await autoVoidEnabled(env), preview, log });
+    }
+    if (m === 'POST' && p === '/api/admin/autovoid') {
+      const b = await readJson(req, 500);
+      if (b.action === 'toggle') {
+        await env.DB.prepare("INSERT INTO settings(key, value) VALUES('auto_void', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(b.enabled ? '1' : '0').run();
+        return json({ ok: true });
+      }
+      const done = await runAutoVoid(env, 'manual');
+      return json({ ok: true, count: done.length });
+    }
 
     /* ---- Undi pemenang ---- */
     if (m === 'GET' && p === '/api/admin/draw') {
@@ -631,5 +708,20 @@ export default {
       console.error(e);
       return json({ error: 'Terjadi kesalahan di server. Coba lagi.' }, 500);
     }
+  },
+  // dijalankan terjadwal (cron): tindak otomatis hanya bila ada pendaftar baru sejak pengecekan terakhir
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil((async () => {
+      try {
+        if (!(await autoVoidEnabled(env))) return;
+        const st = await getSettings(env);
+        if (st.status === 'soon') return;
+        const mx = await env.DB.prepare('SELECT COALESCE(MAX(id), 0) AS m FROM voters').first();
+        const last = await env.DB.prepare("SELECT value FROM settings WHERE key = 'auto_last_max'").first();
+        if (last && Number(last.value) === mx.m) return;
+        await runAutoVoid(env, 'otomatis');
+        await env.DB.prepare("INSERT INTO settings(key, value) VALUES('auto_last_max', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(String(mx.m)).run();
+      } catch (e) { console.error('auto-void gagal', e); }
+    })());
   },
 };
