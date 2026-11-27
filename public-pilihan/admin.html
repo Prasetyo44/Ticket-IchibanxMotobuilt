@@ -87,7 +87,7 @@
         <button class="btn" id="avRun" type="button">Tindak sekarang</button> <button class="btn ghost" id="avRef" type="button">Segarkan</button>
         <div id="avOut" style="margin-top:14px"></div>
       </div>
-      <div class="card"><h2>🏆 Juara motor per kelas</h2><p class="sub">Berdasarkan suara sah (suara yang dibatalkan tidak dihitung). Jalankan dulu pemeriksaan pola mencurigakan di tab Hasil sebelum menetapkan juara.</p><div id="dwClasses"></div></div>
+      <div class="card"><h2>🏆 Juara umum motor (1 pemenang)</h2><p class="sub">Jumlah suara sah dari semua kelas digabung per nomor motor (suara yang dibatalkan tidak dihitung). Jalankan dulu pemeriksaan pola mencurigakan sebelum menetapkan juara.</p><div id="dwOverall"></div><button class="btn" id="stgWin" type="button" style="margin-top:12px">🎬 Umumkan juara di panggung</button><details style="margin-top:14px"><summary class="sub" style="cursor:pointer">Lihat peringkat per kelas (info saja)</summary><div id="dwClasses"></div></details></div>
       <div class="card"><h2>🎁 Undi pemenang pemilih</h2>
         <p class="sub">Diundi acak (random kriptografis) dari pemilih sah yang memberi minimal 1 suara. Pemenang sebelumnya tidak ikut diundi lagi. Pemenang cadangan dipakai bila pemenang utama tidak hadir atau tidak bisa dihubungi.</p>
         <div id="dwPool" class="sub"></div>
@@ -96,7 +96,7 @@
           <div><label class="f">Peserta undian</label><select id="dwScope"></select></div>
           <div><label class="f">Jumlah pemenang cadangan</label><select id="dwBackups"><option>0</option><option selected>2</option><option>3</option><option>5</option></select></div>
         </div>
-        <button class="btn" id="dwGo" type="button" style="margin-top:12px">🎲 Undi sekarang</button>
+        <button class="btn" id="dwGo" type="button" style="margin-top:12px">🎲 Undi sekarang</button> <button class="btn ghost" id="stgGo" type="button" style="margin-top:12px">🎬 Undi di panggung (layar penuh)</button>
         <div id="dwFresh" style="margin-top:14px"></div>
       </div>
       <div class="card"><h2>🔥 Spill flyer (hasil sementara)</h2>
@@ -275,14 +275,17 @@ async function loadDraw() {
     el('b', { textContent: c.name + ' · ' + c.total + ' suara' }),
     el('div', { textContent: !c.top ? 'Belum ada suara.' : c.tie ? '⚠️ SERI: ' + c.leaders.map(l => `#${l.number} ${l.name}`).join(' & ') + ` (${c.top} suara). Tentukan sesuai aturan seri.` : `🏆 #${c.leaders[0].number} ${c.leaders[0].name}${c.leaders[0].owner ? ' (' + c.leaders[0].owner + ')' : ''} · ${c.top} suara` }),
     el('div', { className: 'sub', textContent: 'Top 5: ' + c.ranking.map(r => `#${r.number} (${r.votes})`).join(', ') }))) : [el('p', { className: 'sub', textContent: 'Belum ada data.' })]));
+  const ov = d.overall; $('#dwOverall').replaceChildren(el('div', { style: 'padding:8px 0' },
+    el('div', { style: 'font-size:18px', textContent: !ov.top ? 'Belum ada suara.' : ov.tie ? '⚠️ SERI: ' + ov.leaders.map(l => `#${l.number} ${l.name}`).join(' & ') + ` (${ov.top} suara). Tentukan sesuai aturan seri.` : `🏆 #${ov.leaders[0].number} ${ov.leaders[0].name}${ov.leaders[0].owner ? ' (' + ov.leaders[0].owner + ')' : ''} · ${ov.top} suara` }),
+    el('div', { className: 'sub', textContent: ov.ranking.length ? 'Top 5: ' + ov.ranking.map(r => `#${r.number} (${r.votes})`).join(', ') + ` · total ${ov.total} suara` : '' })));
   const keep = $('#dwScope').value;
   const opts = [el('option', { value: 'all', textContent: 'Semua pemilih sah' })];
-  d.classes.forEach(c => { if (c.top && !c.tie) opts.push(el('option', { value: 'bike:' + c.leaders[0].id, textContent: `Hanya pemilih juara kelas ${c.name} (#${c.leaders[0].number})` })); });
+  if (ov.top && !ov.tie) opts.push(el('option', { value: 'motor:' + ov.leaders[0].number, textContent: `Hanya pemilih juara umum (#${ov.leaders[0].number})` }));
   $('#dwScope').replaceChildren(...opts); if ([...$('#dwScope').options].some(o => o.value === keep)) $('#dwScope').value = keep;
   $('#dwHist').replaceChildren(...(d.draws.length ? d.draws.map(x => drawCard(x, false)) : [el('p', { className: 'sub', textContent: 'Belum ada undian.' })]));
   window._dw = d;
   loadAV();
-  const sk = $('#spClass').value; $('#spClass').replaceChildren(...d.classes.map(c => el('option', { value: c.id, textContent: c.name })));
+  const sk = $('#spClass').value; $('#spClass').replaceChildren(el('option', { value: 'overall', textContent: 'Juara Umum (semua kelas)' }), ...d.classes.map(c => el('option', { value: c.id, textContent: c.name })));
   if ([...$('#spClass').options].some(o => o.value === sk)) $('#spClass').value = sk; spRender();
 }
 $('#dwGo').onclick = () => run(async () => {
@@ -333,14 +336,14 @@ async function drawSpill(cv, c, cta) {
   x.fillStyle = '#fff'; x.font = '800 38px "Plus Jakarta Sans"'; x.fillText('pilihan.ichiban.ai.id', W / 2, 1229);
   x.fillStyle = '#9a9aa8'; x.font = '600 22px "Plus Jakarta Sans"'; x.fillText('Indonesia Motorcycle Show  •  20–29 November 2026  •  ICE BSD City', W / 2, 1304);
 }
-function spSel() { const d = window._dw; return d && d.classes.find(c => String(c.id) === $('#spClass').value); }
+function spSel() { const d = window._dw; if (!d) return null; if ($('#spClass').value === 'overall') return { id: 'overall', name: 'Juara Umum', top: d.overall.top, ranking: d.overall.ranking }; return d.classes.find(c => String(c.id) === $('#spClass').value); }
 async function spRender() { const c = spSel(); if (c) await drawSpill($('#spCv'), c, $('#spCta').value); }
 function spSave(cv, name) { cv.toBlob(b => { const a = el('a', { href: URL.createObjectURL(b), download: `Spill_Top3_${name.replace(/\W+/g, '_')}.png` }); document.body.append(a); a.click(); a.remove(); }, 'image/png'); }
 $('#spClass').onchange = spRender; $('#spCta').oninput = spRender;
 $('#spDl').onclick = () => run(async () => { await spRender(); const c = spSel(); if (c) spSave($('#spCv'), c.name); });
 $('#spAll').onclick = () => run(async () => {
   const d = window._dw, cv = document.createElement('canvas'); cv.width = 1080; cv.height = 1350;
-  for (const c of d.classes.filter(c => c.top)) { await drawSpill(cv, c, $('#spCta').value); spSave(cv, c.name); await new Promise(r => setTimeout(r, 400)); }
+  for (const c of [{ id: 'overall', name: 'Juara Umum', top: d.overall.top, ranking: d.overall.ranking }, ...d.classes].filter(c => c.top)) { await drawSpill(cv, c, $('#spCta').value); spSave(cv, c.name); await new Promise(r => setTimeout(r, 400)); }
   await spRender();
 });
 
@@ -359,6 +362,56 @@ async function loadAV() {
 $('#avOn').onchange = () => run(async () => { await api('/api/admin/autovoid', 'POST', { action: 'toggle', enabled: $('#avOn').checked }); toast($('#avOn').checked ? 'Penindakan otomatis aktif' : 'Penindakan otomatis dimatikan'); });
 $('#avRef').onclick = () => run(loadAV);
 $('#avRun').onclick = () => run(async () => { if (!confirm('Batalkan otomatis semua yang tercantum "Siap ditindak"?')) return; const r = await api('/api/admin/autovoid', 'POST', { action: 'run' }); toast(`${r.count} pemilih dibatalkan`); await loadAV(); });
+
+
+/* mode panggung: layar penuh untuk LED */
+function stageOpen(build) {
+  const ov = el('div', { style: 'position:fixed;inset:0;z-index:9999;background:radial-gradient(circle at 50% 30%,#4d0a12,#0a0a0e 70%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:"Plus Jakarta Sans",sans-serif' });
+  const cv = el('canvas', { style: 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none' });
+  const box = el('div', { style: 'position:relative;z-index:1;max-width:1100px;width:100%' });
+  const x = el('button', { textContent: '✕ Tutup', style: 'position:absolute;top:14px;right:14px;z-index:2;background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-size:16px;cursor:pointer', onclick: () => { ov._stop = true; ov.remove(); } });
+  ov.append(cv, box, x); document.body.append(ov); build(box, ov, cv); return ov;
+}
+function confetti(cv, ov) {
+  const c = cv.getContext('2d'); cv.width = innerWidth; cv.height = innerHeight; const cols = ['#e31e2b', '#ffd23f', '#fff', '#ff9f1c', '#4cc9f0'];
+  const ps = Array.from({ length: 220 }, () => ({ x: Math.random() * cv.width, y: -Math.random() * cv.height, vx: (Math.random() - .5) * 4, vy: 3 + Math.random() * 6, s: 6 + Math.random() * 8, r: Math.random() * 6, col: cols[Math.floor(Math.random() * cols.length)] }));
+  (function f() { if (ov._stop) return; c.clearRect(0, 0, cv.width, cv.height); ps.forEach(p => { p.x += p.vx; p.y += p.vy; p.r += .1; if (p.y > cv.height) { p.y = -20; p.x = Math.random() * cv.width; } c.save(); c.translate(p.x, p.y); c.rotate(p.r); c.fillStyle = p.col; c.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); c.restore(); }); requestAnimationFrame(f); })();
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const big = (t, px, col) => el('div', { textContent: t, style: `font-size:${px}px;font-weight:800;line-height:1.15;${col ? 'color:' + col : ''}` });
+const maskPhone = p => String(p || '').replace(/\d(?=\d{3})/g, '•').replace(/•{2,}/, m => m);
+async function stageDraw(prize, scope, backups, force) {
+  const r = await api('/api/admin/draw', 'POST', { prize, scope, backups, force }); await loadDraw();
+  const dr = window._dw.draws.find(x => x.id === r.id); const names = r.names && r.names.length ? r.names : ['…'];
+  stageOpen(async (box, ov, cv) => {
+    box.append(big('🎁 ' + prize, 40, '#ffd23f'), el('div', { style: 'height:18px' }), big('Siapa pemenangnya?', 30), el('div', { style: 'height:30px' }));
+    const roll = big('', 120); roll.style.minHeight = '150px'; box.append(roll);
+    for (let i = 0; i < 60 && !ov._stop; i++) { roll.textContent = names[i % names.length].toUpperCase(); await sleep(60 + Math.pow(i, 2) * .06 + (i > 48 ? (i - 48) * 45 : 0)); }
+    if (ov._stop) return; const w = dr.winners[0];
+    box.replaceChildren(big('🎉 PEMENANG 🎉', 44, '#ffd23f'), el('div', { style: 'height:20px' }), big(w.name.toUpperCase(), 96), el('div', { style: 'height:14px' }), big(`${maskPhone(w.phone)}${w.community ? ' • ' + w.community : ''}${w.city ? ' • ' + w.city : ''}`, 34, '#ffd9dc'), el('div', { style: 'height:26px' }), big('🎁 ' + prize, 34, '#ffd23f'));
+    confetti(cv, ov);
+    if (dr.winners.length > 1) box.append(el('div', { style: 'height:30px' }), el('div', { style: 'font-size:20px;opacity:.7', textContent: 'Cadangan (bila pemenang tidak hadir): ' + dr.winners.slice(1).map(x => x.name).join(' • ') }));
+  });
+}
+$('#stgGo').onclick = () => run(async () => {
+  const d = window._dw || await api('/api/admin/draw'); let force = false;
+  if (d.status === 'open') { if (!confirm('Voting MASIH DIBUKA. Tetap undi sekarang?')) return; force = true; }
+  if (!confirm('Jalankan undian di layar penuh? Hasil langsung tercatat.')) return;
+  await stageDraw($('#dwPrize').value || 'Hadiah pemilih', $('#dwScope').value, $('#dwBackups').value, force);
+});
+$('#stgWin').onclick = () => run(async () => {
+  const d = await api('/api/admin/draw'); const ov = d.overall;
+  if (!ov.top) throw new Error('Belum ada suara.'); if (ov.tie) throw new Error('Masih seri. Tentukan dulu sesuai aturan seri.');
+  const w = ov.leaders[0];
+  stageOpen(async (box, o, cv) => {
+    box.append(big("🏆 PEOPLE'S CHOICE", 46, '#ffd23f'), el('div', { style: 'height:20px' }), big('Juara pilihan pengunjung IMOS 2026 adalah...', 30));
+    const n = big('', 200); box.append(el('div', { style: 'height:16px' }), n);
+    for (const t of ['3', '2', '1']) { if (o._stop) return; n.textContent = t; await sleep(1100); }
+    if (o._stop) return;
+    box.replaceChildren(big('🏆 JUARA PEOPLE\'S CHOICE 🏆', 44, '#ffd23f'), el('div', { style: 'height:10px' }), big('#' + w.number, 220, '#e31e2b'), big(w.name.toUpperCase(), 72), w.owner ? big(w.owner, 40, '#ffd9dc') : '', el('div', { style: 'height:16px' }), big(`${w.votes} suara dari pengunjung`, 30));
+    confetti(cv, o);
+  });
+});
 
 /* pengaturan */
 async function loadSettings() {

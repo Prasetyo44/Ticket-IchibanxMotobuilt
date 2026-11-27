@@ -222,6 +222,15 @@ function classWinners(results) {
     return { id: c.id, name: c.name, total: c.total, top, tie: leaders.length > 1, leaders: leaders.map((b) => ({ id: b.id, number: b.number, name: b.name, owner: b.owner, votes: b.votes })), ranking: c.bikes.slice(0, 5).map((b) => ({ id: b.id, number: b.number, name: b.name, votes: b.votes })) };
   });
 }
+/* Juara umum: jumlah suara per nomor motor dari semua kelas */
+function overallWinner(results) {
+  const m = new Map();
+  for (const c of results) for (const b of c.bikes) { const e = m.get(b.number) || { number: b.number, name: b.name, owner: b.owner, votes: 0, classes: [] }; e.votes += b.votes; if (b.votes) e.classes.push(c.name); m.set(b.number, e); }
+  const arr = [...m.values()].filter((x) => x.votes > 0).sort((a, b) => b.votes - a.votes);
+  const top = arr.length ? arr[0].votes : 0;
+  const leaders = arr.filter((x) => x.votes === top);
+  return { top, tie: leaders.length > 1, leaders, ranking: arr.slice(0, 5), total: arr.reduce((t, x) => t + x.votes, 0) };
+}
 async function drawList(env) {
   const { results: ds } = await env.DB.prepare('SELECT * FROM draws ORDER BY id DESC LIMIT 100').all();
   const { results: ws } = await env.DB.prepare(
@@ -639,7 +648,7 @@ async function handle(req, env) {
       const st = await getSettings(env);
       const res = withResults(await catalog(env), await tallies(env));
       const pool = await env.DB.prepare('SELECT COUNT(DISTINCT r.id) AS c FROM voters r JOIN votes v ON v.voter_id = r.id WHERE r.void = 0').first();
-      return json({ status: st.status, pool: pool.c, classes: classWinners(res), draws: await drawList(env) });
+      return json({ status: st.status, pool: pool.c, overall: overallWinner(res), classes: classWinners(res), draws: await drawList(env) });
     }
     if (m === 'POST' && p === '/api/admin/draw') {
       await ensureDrawTables(env);
@@ -649,24 +658,29 @@ async function handle(req, env) {
       const prize = clean(b.prize, 120) || 'Hadiah pemilih';
       const backups = Math.min(5, Math.max(0, parseInt(b.backups, 10) || 0));
       let scope = 'all', label = 'Semua pemilih sah', bikeId = null;
-      if (typeof b.scope === 'string' && (g = b.scope.match(/^bike:(\d+)$/))) {
+      let motorNo = null;
+      if (typeof b.scope === 'string' && (g = b.scope.match(/^motor:(.{1,20})$/))) {
+        motorNo = g[1]; scope = 'motor:' + motorNo; label = `Pemilih motor juara umum #${motorNo}`;
+      } else if (typeof b.scope === 'string' && (g = b.scope.match(/^bike:(\d+)$/))) {
         bikeId = Number(g[1]);
         const bk = await env.DB.prepare('SELECT b.number, b.name, c.name AS cat FROM bikes b JOIN categories c ON c.id = b.category_id WHERE b.id = ?').bind(bikeId).first();
         if (!bk) throw new HttpError(404, 'Motor tidak ditemukan.');
         scope = 'bike:' + bikeId; label = `Pemilih motor #${bk.number} ${bk.name} (${bk.cat})`;
       }
       const sql = `SELECT DISTINCT r.id FROM voters r JOIN votes v ON v.voter_id = r.id
-        WHERE r.void = 0 ${bikeId ? 'AND v.bike_id = ?1' : ''}
+        WHERE r.void = 0 ${bikeId ? 'AND v.bike_id = ?1' : ''} ${motorNo ? 'AND v.bike_id IN (SELECT id FROM bikes WHERE number = ?1)' : ''}
           AND r.id NOT IN (SELECT voter_id FROM draw_winners WHERE rank = 1 OR status IN ('diterima','gugur'))
         ORDER BY r.id`;
-      const { results } = await (bikeId ? env.DB.prepare(sql).bind(bikeId) : env.DB.prepare(sql)).all();
+      const { results } = await (bikeId ? env.DB.prepare(sql).bind(bikeId) : motorNo ? env.DB.prepare(sql).bind(motorNo) : env.DB.prepare(sql)).all();
       const ids = results.map((x) => x.id);
       if (!ids.length) throw new HttpError(409, 'Tidak ada pemilih sah yang memenuhi syarat untuk diundi.');
       const picked = shuffle(ids).slice(0, 1 + backups);
       const d = await env.DB.prepare('INSERT INTO draws(prize, scope, scope_label, pool_size, created_at) VALUES(?,?,?,?,?)').bind(prize, scope, label, ids.length, new Date().toISOString()).run();
       const drawId = d.meta.last_row_id;
       await env.DB.batch(picked.map((vid, i) => env.DB.prepare('INSERT INTO draw_winners(draw_id, rank, voter_id) VALUES(?,?,?)').bind(drawId, i + 1, vid)));
-      return json({ ok: true, id: drawId });
+      const mask = (n) => String(n || '').trim().split(/\s+/)[0].slice(0, 14);
+      const { results: nm } = await env.DB.prepare(`SELECT name FROM voters WHERE id IN (${shuffle(ids.slice()).slice(0, 40).join(',')})`).all();
+      return json({ ok: true, id: drawId, names: nm.map((x) => mask(x.name)) });
     }
     if (m === 'POST' && (g = p.match(/^\/api\/admin\/draw\/winner\/(\d+)$/))) {
       await ensureDrawTables(env);
